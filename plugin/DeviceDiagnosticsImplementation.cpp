@@ -405,7 +405,7 @@ bool getFileContent(std::string fileName, std::list<std::string> & listOfStrs)
 {
     bool retStatus = false;
     std::ifstream inFile(fileName.c_str(), std::ios::in);
-
+    printf("Test coverity flow: %s\n");
     if (!inFile.is_open())
         return retStatus;
 
