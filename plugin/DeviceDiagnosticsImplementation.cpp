@@ -27,6 +27,7 @@
 #define MILESTONES_LOG_FILE                     "/opt/logs/rdk_milestones.log"
 
 
+
 /***
  * @brief  : Used to read file contents into a vector
  * @param1[in] : Complete file name with path
