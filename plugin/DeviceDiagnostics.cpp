@@ -19,6 +19,11 @@
 
 #include "DeviceDiagnostics.h"
 
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+
 #define API_VERSION_NUMBER_MAJOR 1
 #define API_VERSION_NUMBER_MINOR 1
 #define API_VERSION_NUMBER_PATCH 2
@@ -67,7 +72,16 @@ namespace WPEFramework
         ASSERT(nullptr == _deviceDiagnostics);
         ASSERT(0 == _connectionId);
 
-        SYSLOG(Logging::Startup, (_T("DeviceDiagnostics::Initialize: PID=%u"), getpid()));
+        const auto initStart = std::chrono::system_clock::now();
+        const std::time_t initStartTime = std::chrono::system_clock::to_time_t(initStart);
+        const auto initStartMs = std::chrono::duration_cast<std::chrono::milliseconds>(initStart.time_since_epoch()).count() % 1000;
+        std::tm initStartLocal{};
+        localtime_r(&initStartTime, &initStartLocal);
+        std::ostringstream initStartStream;
+        initStartStream << std::put_time(&initStartLocal, "%Y-%m-%d %H:%M:%S") << '.'
+                << std::setw(3) << std::setfill('0') << initStartMs;
+
+        SYSLOG(Logging::Startup, (_T("DeviceDiagnostics::Initialize: PID=%u Timestamp=%s"), getpid(), initStartStream.str().c_str()));
 
         _service = service;
         _service->AddRef();
@@ -87,6 +101,17 @@ namespace WPEFramework
             SYSLOG(Logging::Startup, (_T("DeviceDiagnostics::Initialize: Failed to initialise DeviceDiagnostics plugin")));
             message = _T("DeviceDiagnostics plugin could not be initialised");
         }
+
+        const auto initEnd = std::chrono::system_clock::now();
+        const std::time_t initEndTime = std::chrono::system_clock::to_time_t(initEnd);
+        const auto initEndMs = std::chrono::duration_cast<std::chrono::milliseconds>(initEnd.time_since_epoch()).count() % 1000;
+        std::tm initEndLocal{};
+        localtime_r(&initEndTime, &initEndLocal);
+        std::ostringstream initEndStream;
+        initEndStream << std::put_time(&initEndLocal, "%Y-%m-%d %H:%M:%S") << '.'
+                      << std::setw(3) << std::setfill('0') << initEndMs;
+
+        SYSLOG(Logging::Startup, (_T("DeviceDiagnostics::Initialize complete: Timestamp=%s"), initEndStream.str().c_str()));
         
         return message;
     }
@@ -95,7 +120,16 @@ namespace WPEFramework
     {
         ASSERT(_service == service);
 
-        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics::Deinitialize"))));
+        const auto deinitStart = std::chrono::system_clock::now();
+        const std::time_t deinitStartTime = std::chrono::system_clock::to_time_t(deinitStart);
+        const auto deinitStartMs = std::chrono::duration_cast<std::chrono::milliseconds>(deinitStart.time_since_epoch()).count() % 1000;
+        std::tm deinitStartLocal{};
+        localtime_r(&deinitStartTime, &deinitStartLocal);
+        std::ostringstream deinitStartStream;
+        deinitStartStream << std::put_time(&deinitStartLocal, "%Y-%m-%d %H:%M:%S") << '.'
+                          << std::setw(3) << std::setfill('0') << deinitStartMs;
+
+        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics::Deinitialize Timestamp=")) + deinitStartStream.str()));
 
         // Make sure the Activated and Deactivated are no longer called before we start cleaning up..
         _service->Unregister(&_deviceDiagnosticsNotification);
@@ -144,7 +178,16 @@ namespace WPEFramework
         _connectionId = 0;
         _service->Release();
         _service = nullptr;
-        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics de-initialised"))));
+        const auto deinitEnd = std::chrono::system_clock::now();
+        const std::time_t deinitEndTime = std::chrono::system_clock::to_time_t(deinitEnd);
+        const auto deinitEndMs = std::chrono::duration_cast<std::chrono::milliseconds>(deinitEnd.time_since_epoch()).count() % 1000;
+        std::tm deinitEndLocal{};
+        localtime_r(&deinitEndTime, &deinitEndLocal);
+        std::ostringstream deinitEndStream;
+        deinitEndStream << std::put_time(&deinitEndLocal, "%Y-%m-%d %H:%M:%S") << '.'
+                        << std::setw(3) << std::setfill('0') << deinitEndMs;
+
+        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics de-initialised Timestamp=")) + deinitEndStream.str()));
     }
 
     string DeviceDiagnostics::Information() const

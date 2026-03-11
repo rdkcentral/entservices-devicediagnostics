@@ -19,8 +19,12 @@
 
 #include "DeviceDiagnosticsImplementation.h"
 #include <curl/curl.h>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 #include <time.h>
 #include <fstream>
+#include <sstream>
 
 #include "UtilsJsonRpc.h"
 
@@ -104,6 +108,16 @@ namespace WPEFramework
         {
             ASSERT (nullptr != notification);
 
+            const auto registerStart = std::chrono::system_clock::now();
+            const std::time_t registerStartTime = std::chrono::system_clock::to_time_t(registerStart);
+            const auto registerStartMs = std::chrono::duration_cast<std::chrono::milliseconds>(registerStart.time_since_epoch()).count() % 1000;
+            std::tm registerStartLocal{};
+            localtime_r(&registerStartTime, &registerStartLocal);
+            std::ostringstream registerStartStream;
+            registerStartStream << std::put_time(&registerStartLocal, "%Y-%m-%d %H:%M:%S") << '.'
+                                << std::setw(3) << std::setfill('0') << registerStartMs;
+            LOGINFO("DeviceDiagnosticsImplementation::Register called Timestamp=%s", registerStartStream.str().c_str());
+
             _adminLock.Lock();
 
             // Make sure we can't register the same notification callback multiple times
@@ -119,6 +133,16 @@ namespace WPEFramework
 
             _adminLock.Unlock();
 
+            const auto registerEnd = std::chrono::system_clock::now();
+            const std::time_t registerEndTime = std::chrono::system_clock::to_time_t(registerEnd);
+            const auto registerEndMs = std::chrono::duration_cast<std::chrono::milliseconds>(registerEnd.time_since_epoch()).count() % 1000;
+            std::tm registerEndLocal{};
+            localtime_r(&registerEndTime, &registerEndLocal);
+            std::ostringstream registerEndStream;
+            registerEndStream << std::put_time(&registerEndLocal, "%Y-%m-%d %H:%M:%S") << '.'
+                              << std::setw(3) << std::setfill('0') << registerEndMs;
+            LOGINFO("DeviceDiagnosticsImplementation::Register completed Timestamp=%s", registerEndStream.str().c_str());
+
             return Core::ERROR_NONE;
         }
 
@@ -127,6 +151,16 @@ namespace WPEFramework
             Core::hresult status = Core::ERROR_GENERAL;
 
             ASSERT (nullptr != notification);
+
+            const auto unregisterStart = std::chrono::system_clock::now();
+            const std::time_t unregisterStartTime = std::chrono::system_clock::to_time_t(unregisterStart);
+            const auto unregisterStartMs = std::chrono::duration_cast<std::chrono::milliseconds>(unregisterStart.time_since_epoch()).count() % 1000;
+            std::tm unregisterStartLocal{};
+            localtime_r(&unregisterStartTime, &unregisterStartLocal);
+            std::ostringstream unregisterStartStream;
+            unregisterStartStream << std::put_time(&unregisterStartLocal, "%Y-%m-%d %H:%M:%S") << '.'
+                                  << std::setw(3) << std::setfill('0') << unregisterStartMs;
+            LOGINFO("DeviceDiagnosticsImplementation::Unregister called Timestamp=%s", unregisterStartStream.str().c_str());
 
             _adminLock.Lock();
 
@@ -144,6 +178,16 @@ namespace WPEFramework
             }
 
             _adminLock.Unlock();
+
+            const auto unregisterEnd = std::chrono::system_clock::now();
+            const std::time_t unregisterEndTime = std::chrono::system_clock::to_time_t(unregisterEnd);
+            const auto unregisterEndMs = std::chrono::duration_cast<std::chrono::milliseconds>(unregisterEnd.time_since_epoch()).count() % 1000;
+            std::tm unregisterEndLocal{};
+            localtime_r(&unregisterEndTime, &unregisterEndLocal);
+            std::ostringstream unregisterEndStream;
+            unregisterEndStream << std::put_time(&unregisterEndLocal, "%Y-%m-%d %H:%M:%S") << '.'
+                                << std::setw(3) << std::setfill('0') << unregisterEndMs;
+            LOGINFO("DeviceDiagnosticsImplementation::Unregister completed Status=%d Timestamp=%s", status, unregisterEndStream.str().c_str());
 
             return status;
         }
