@@ -55,12 +55,12 @@ namespace WPEFramework
 
     DeviceDiagnostics::DeviceDiagnostics() : _service(nullptr), _connectionId(0), _deviceDiagnostics(nullptr), _deviceDiagnosticsNotification(this)
     {
-        SYSLOG(Logging::Startup, (_T("DeviceDiagnostics Constructor")));
+        SYSLOG(Logging::Startup, (_T("@@@NNA...DeviceDiagnostics Constructor")));
     }
 
     DeviceDiagnostics::~DeviceDiagnostics()
     {
-        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics Destructor"))));
+        SYSLOG(Logging::Shutdown, (_T("@@@NNA...DeviceDiagnostics Destructor")));
     }
 
     const string DeviceDiagnostics::Initialize(PluginHost::IShell* service)
@@ -81,7 +81,7 @@ namespace WPEFramework
         initStartStream << std::put_time(&initStartLocal, "%Y-%m-%d %H:%M:%S") << '.'
                 << std::setw(3) << std::setfill('0') << initStartMs;
 
-        SYSLOG(Logging::Startup, (_T("DeviceDiagnostics::Initialize: PID=%u Timestamp=%s"), getpid(), initStartStream.str().c_str()));
+        SYSLOG(Logging::Startup, (_T("@@@NNA...DeviceDiagnostics::Initialize: PID=%u Timestamp=%s"), getpid(), initStartStream.str().c_str()));
 
         _service = service;
         _service->AddRef();
@@ -98,7 +98,7 @@ namespace WPEFramework
         }
         else
         {
-            SYSLOG(Logging::Startup, (_T("DeviceDiagnostics::Initialize: Failed to initialise DeviceDiagnostics plugin")));
+            SYSLOG(Logging::Startup, (_T("@@@NNA...DeviceDiagnostics::Initialize: Failed to initialise DeviceDiagnostics plugin")));
             message = _T("DeviceDiagnostics plugin could not be initialised");
         }
 
@@ -111,7 +111,7 @@ namespace WPEFramework
         initEndStream << std::put_time(&initEndLocal, "%Y-%m-%d %H:%M:%S") << '.'
                       << std::setw(3) << std::setfill('0') << initEndMs;
 
-        SYSLOG(Logging::Startup, (_T("DeviceDiagnostics::Initialize complete: Timestamp=%s"), initEndStream.str().c_str()));
+        SYSLOG(Logging::Startup, (_T("@@@NNA...DeviceDiagnostics::Initialize complete: Timestamp=%s"), initEndStream.str().c_str()));
         
         return message;
     }
@@ -129,7 +129,7 @@ namespace WPEFramework
         deinitStartStream << std::put_time(&deinitStartLocal, "%Y-%m-%d %H:%M:%S") << '.'
                           << std::setw(3) << std::setfill('0') << deinitStartMs;
 
-        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics::Deinitialize Timestamp=")) + deinitStartStream.str()));
+        SYSLOG(Logging::Shutdown, (_T("@@@NNA...DeviceDiagnostics::Deinitialize Timestamp=%s"), deinitStartStream.str().c_str()));
 
         // Make sure the Activated and Deactivated are no longer called before we start cleaning up..
         _service->Unregister(&_deviceDiagnosticsNotification);
@@ -187,7 +187,7 @@ namespace WPEFramework
         deinitEndStream << std::put_time(&deinitEndLocal, "%Y-%m-%d %H:%M:%S") << '.'
                         << std::setw(3) << std::setfill('0') << deinitEndMs;
 
-        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics de-initialised Timestamp=")) + deinitEndStream.str()));
+        SYSLOG(Logging::Shutdown, (_T("@@@NNA...DeviceDiagnostics de-initialised Timestamp=%s"), deinitEndStream.str().c_str()));
     }
 
     string DeviceDiagnostics::Information() const
