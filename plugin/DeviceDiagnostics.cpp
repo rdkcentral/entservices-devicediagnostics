@@ -1,163 +1,172 @@
-/**
-* If not stated otherwise in this file or this component's LICENSE
-* file the following copyright and licenses apply:
-*
-* Copyright 2019 RDK Management
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-**/
+/*
+ * If not stated otherwise in this file or this component's LICENSE file the
+ * following copyright and licenses apply:
+ *
+ * Copyright 2020 Metrological
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-#include "DeviceDiagnostics.h"
+#include "COMRPCStarter.h"
 
-#define API_VERSION_NUMBER_MAJOR 1
-#define API_VERSION_NUMBER_MINOR 1
-#define API_VERSION_NUMBER_PATCH 2
+#include "Log.h"
 
-namespace WPEFramework
+#include <chrono>
+#include <thread>
+
+COMRPCStarter::COMRPCStarter(const string& pluginName)
+    : IPluginStarter()
+    , _connector()
+    , _pluginName(pluginName)
 {
+}
 
-    namespace {
+/**
+ * @brief Attempt to activate the plugin and automatically retry on failure
+ *
+ * @param[in]   maxRetries      Maximum amount of times to retry activation if it fails
+ * @param[in]   retryDelayMs    Delay in ms between retry attempts
+ *
+ * @return True if plugin successfully activated, false if failed to activate
+ */
+bool COMRPCStarter::activatePlugin(const uint8_t maxRetries, const uint16_t retryDelayMs)
+{
+    const auto invokedSteady = std::chrono::steady_clock::now();
+    const auto invokedEpochMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    LOG_INF(_pluginName.c_str(), "activatePlugin invoked at epochMs=%lld", static_cast<long long>(invokedEpochMs));
 
-        static Plugin::Metadata<Plugin::DeviceDiagnostics> metadata(
-            // Version (Major, Minor, Patch)
-            API_VERSION_NUMBER_MAJOR, API_VERSION_NUMBER_MINOR, API_VERSION_NUMBER_PATCH,
-            // Preconditions
-            {},
-            // Terminations
-            {},
-            // Controls
-            {}
-        );
-    }
+    // Attempt to open the plugin shell
+    bool success = false;
+    int currentRetry = 1;
 
-    namespace Plugin
-    {
+    while (!success && currentRetry <= maxRetries) {
+        LOG_INF(_pluginName.c_str(), "Attempting to activate plugin - attempt %d/%d", currentRetry, maxRetries);
 
-    /*
-     *Register DeviceDiagnostics module as wpeframework plugin
-     **/
-    SERVICE_REGISTRATION(DeviceDiagnostics, API_VERSION_NUMBER_MAJOR, API_VERSION_NUMBER_MINOR, API_VERSION_NUMBER_PATCH);
+        auto start = Core::Time::Now();
 
-    DeviceDiagnostics::DeviceDiagnostics() : _service(nullptr), _connectionId(0), _deviceDiagnostics(nullptr), _deviceDiagnosticsNotification(this)
-    {
-        SYSLOG(Logging::Startup, (_T("DeviceDiagnostics Constructor")));
-    }
-
-    DeviceDiagnostics::~DeviceDiagnostics()
-    {
-        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics Destructor"))));
-    }
-
-    const string DeviceDiagnostics::Initialize(PluginHost::IShell* service)
-    {
-        string message="";
-
-        ASSERT(nullptr != service);
-        ASSERT(nullptr == _service);
-        ASSERT(nullptr == _deviceDiagnostics);
-        ASSERT(0 == _connectionId);
-
-        SYSLOG(Logging::Startup, (_T("DeviceDiagnostics::Initialize: PID=%u"), getpid()));
-
-        _service = service;
-        _service->AddRef();
-        _service->Register(&_deviceDiagnosticsNotification);
-
-        _deviceDiagnostics = service->Root<Exchange::IDeviceDiagnostics>(_connectionId, 5000, _T("DeviceDiagnosticsImplementation"));
-
-        if(nullptr != _deviceDiagnostics)
-        {
-            // Register for notifications
-            _deviceDiagnostics->Register(&_deviceDiagnosticsNotification);
-            // Invoking Plugin API register to wpeframework
-            Exchange::JDeviceDiagnostics::Register(*this, _deviceDiagnostics);
-        }
-        else
-        {
-            SYSLOG(Logging::Startup, (_T("DeviceDiagnostics::Initialize: Failed to initialise DeviceDiagnostics plugin")));
-            message = _T("DeviceDiagnostics plugin could not be initialised");
-        }
-        
-        return message;
-    }
-
-    void DeviceDiagnostics::Deinitialize(PluginHost::IShell* service)
-    {
-        ASSERT(_service == service);
-
-        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics::Deinitialize"))));
-
-        // Make sure the Activated and Deactivated are no longer called before we start cleaning up..
-        _service->Unregister(&_deviceDiagnosticsNotification);
-
-        if (nullptr != _deviceDiagnostics)
-        {
-
-            _deviceDiagnostics->Unregister(&_deviceDiagnosticsNotification);
-            Exchange::JDeviceDiagnostics::Unregister(*this);
-
-            // Stop processing:
-            RPC::IRemoteConnection* connection = service->RemoteConnection(_connectionId);
-            VARIABLE_IS_NOT_USED uint32_t result = _deviceDiagnostics->Release();
-
-            _deviceDiagnostics = nullptr;
-
-            // It should have been the last reference we are releasing,
-            // so it should endup in a DESTRUCTION_SUCCEEDED, if not we
-            // are leaking...
-            ASSERT(result == Core::ERROR_DESTRUCTION_SUCCEEDED);
-
-            // If this was running in a (container) process...
-            if (nullptr != connection)
-            {
-               // Lets trigger the cleanup sequence for
-               // out-of-process code. Which will guard
-               // that unwilling processes, get shot if
-               // not stopped friendly :-)
-               try
-               {
-                   connection->Terminate();
-                   // Log success if needed
-                   LOGWARN("Connection terminated successfully.");
-               }
-               catch (const std::exception& e)
-               {
-                   std::string errorMessage = "Failed to terminate connection: ";
-                   errorMessage += e.what();
-                   LOGWARN("%s",errorMessage.c_str());
-               }
-
-               connection->Release();
+        if (_connector.IsOperational() == false) {
+            uint32_t result = _connector.Open(RPC::CommunicationTimeOut, ControllerConnector::Connector());
+            if (result != Core::ERROR_NONE) {
+                LOG_ERROR(_pluginName.c_str(), "Failed to get controller interface, error %u (%s)", result, Core::ErrorToString(result));
             }
         }
 
-        _connectionId = 0;
-        _service->Release();
-        _service = nullptr;
-        SYSLOG(Logging::Shutdown, (string(_T("DeviceDiagnostics de-initialised"))));
-    }
+        Exchange::Controller::ILifeTime* lifetime = _connector.Interface();
 
-    string DeviceDiagnostics::Information() const
-    {
-       return ("This DeviceDiagnostics Plugin provides additional diagnostics information which includes device configuration and AV decoder status.");
-    }
+        if (lifetime == nullptr) {
+            LOG_ERROR(_pluginName.c_str(), "Failed to open ILifeTime interface, will retry after %dms", retryDelayMs);
+            currentRetry++;
 
-    void DeviceDiagnostics::Deactivated(RPC::IRemoteConnection* connection)
-    {
-        if (connection->Id() == _connectionId) {
-            ASSERT(nullptr != _service);
-            Core::IWorkerPool::Instance().Submit(PluginHost::IShell::Job::Create(_service, PluginHost::IShell::DEACTIVATED, PluginHost::IShell::FAILURE));
+            _connector.Close(RPC::CommunicationTimeOut);
+
+            // Sleep, then try again
+            std::this_thread::sleep_for(std::chrono::milliseconds(retryDelayMs));
+        } else {
+            // Will block until plugin is activated
+            Core::hresult result = lifetime->Activate(_pluginName.c_str());
+
+            auto duration = Core::Time::Now().Sub(start.MilliSeconds());
+
+            if (result != Core::ERROR_NONE) {
+                if (result == Core::ERROR_PENDING_CONDITIONS) {
+                    // Ideally we'd print out which preconditions are un-met for debugging, but that data is not exposed through the IShell interface
+                    LOG_ERROR(_pluginName.c_str(), "Failed to activate plugin due to unmet preconditions after %dms", duration.MilliSeconds());
+                } else {
+                    LOG_ERROR(_pluginName.c_str(), "Failed to activate plugin with error %u (%s) after %dms", result, Core::ErrorToString(result), duration.MilliSeconds());
+                }
+
+                // Try activation again up until the max number of retries
+                currentRetry++;
+                std::this_thread::sleep_for(std::chrono::milliseconds(retryDelayMs));
+            } else {
+                // Our work here is done!
+                
+                LOG_INF(_pluginName.c_str(), "Successfully activated plugin after %dms", duration.MilliSeconds());
+                success = true;
+            }
+            lifetime->Release();
         }
     }
-} // namespace Plugin
-} // namespace WPEFramework
+
+    if (!success) {
+        LOG_ERROR(_pluginName.c_str(), "Max retries hit - giving up activating the plugin");
+    }
+
+    if (_connector.IsOperational() == true) {
+        _connector.Close(RPC::CommunicationTimeOut);
+    }
+
+    const auto returnedEpochMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - invokedSteady).count();
+    LOG_INF(_pluginName.c_str(), "activatePlugin returning success=%s at epochMs=%lld (elapsed=%lldms)",
+        success ? "true" : "false", static_cast<long long>(returnedEpochMs), static_cast<long long>(elapsedMs));
+
+    return success;
+}
+
+bool COMRPCStarter::deactivatePlugin(const uint8_t maxRetries, const uint16_t retryDelayMs)
+{
+    bool success = false;
+    int currentRetry = 1;
+
+    while (!success && currentRetry <= maxRetries) {
+        LOG_INF(_pluginName.c_str(), "Attempting to deactivate plugin - attempt %d/%d", currentRetry, maxRetries);
+
+        auto start = Core::Time::Now();
+
+        if (_connector.IsOperational() == false) {
+            uint32_t result = _connector.Open(RPC::CommunicationTimeOut, ControllerConnector::Connector());
+            if(result != Core::ERROR_NONE) {
+                LOG_ERROR(_pluginName.c_str(), "Failed to get controller interface, error %u (%s)", result, Core::ErrorToString(result));
+            }
+        }
+
+        Exchange::Controller::ILifeTime* lifetime = _connector.Interface();
+
+        if (lifetime == nullptr) {
+            LOG_ERROR(_pluginName.c_str(), "Failed to open ILifeTime interface" );
+            currentRetry++;
+
+            _connector.Close(RPC::CommunicationTimeOut);
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(retryDelayMs));
+        } else {
+            uint32_t result = lifetime->Deactivate(_pluginName.c_str());
+
+            auto duration = Core::Time::Now().Sub(start.MilliSeconds());
+
+            if (result != Core::ERROR_NONE) {
+                LOG_ERROR(_pluginName.c_str(), "Failed to deactivate plugin with error %u (%s) after %dms", result, Core::ErrorToString(result), duration.MilliSeconds());
+                currentRetry++;
+                std::this_thread::sleep_for(std::chrono::milliseconds(retryDelayMs));
+            } else {
+                LOG_INF(_pluginName.c_str(), "Successfully deactivated plugin after %dms", duration.MilliSeconds());
+                success = true;
+            }
+            lifetime->Release();
+        }
+    }
+
+    if (!success) {
+        LOG_ERROR(_pluginName.c_str(), "Max retries hit - giving up deactivating the plugin");
+    }
+
+    if (_connector.IsOperational() == true) {
+        _connector.Close(RPC::CommunicationTimeOut);
+    }
+
+    return success;
+}
