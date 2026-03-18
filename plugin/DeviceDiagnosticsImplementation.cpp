@@ -17,6 +17,7 @@
 * limitations under the License.
 **/
 
+
 #include "DeviceDiagnosticsImplementation.h"
 #include <curl/curl.h>
 #include <time.h>
