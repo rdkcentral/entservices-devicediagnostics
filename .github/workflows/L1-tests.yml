@@ -710,14 +710,14 @@ jobs:
             rdkL1TestResultsWithoutValgrind.json
             rdkL1TestResultsWithValgrind.json
           if-no-files-found: warn
-    # The below steps are for uploading full build results for debugging purposes.
+      # The below steps are for uploading full build results for debugging purposes.
       - name: Upload build
         if: always()
         uses: actions/upload-artifact@v4
         with:
-         name: Build results
-         path: |
-          valgrind_log
-          gdb_log.txt
-          gdb_output.log
-          debug_info.log 
+          name: Build results
+          path: |
+            valgrind_log
+            gdb_log.txt
+            gdb_output.log
+            debug_info.log 
