@@ -345,13 +345,12 @@ namespace WPEFramework
             LOGINFO("");
             
             bool retAPIStatus = false;
-            uint8_t parseStatus = 0;
             string timestamp, source, reason, customReason, otherReason, lastHardPowerReset;
             string rebootInfoContent;
             string hardPowerInfo;
             Core::hresult result = Core::ERROR_GENERAL;
             
-            
+            success = false;
             if (!Utils::fileExists(PREVIOUS_REBOOT_INFO_FILE)) {
 		       LOGERR("Failed to get previous reboot info, %s not found or can't be opened for reading", PREVIOUS_REBOOT_INFO_FILE);
 		       return result;
@@ -367,6 +366,7 @@ namespace WPEFramework
                 LOGERR("Failed to read reboot info file or file is empty");
 		        return result;
             }
+			
             JsonObject rebootInfoJson;
             if (rebootInfoJson.FromString(rebootInfoContent)) {
                 timestamp = rebootInfoJson["timestamp"].String();
@@ -378,6 +378,7 @@ namespace WPEFramework
                 LOGERR("Failed to parse reboot info JSON");
                 return result;
             }
+			
             bool hardPowerStatus = getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo);
             if (!hardPowerStatus || hardPowerInfo.empty()) {
                 LOGERR("Failed to read hard power info file or file is empty");
@@ -391,6 +392,7 @@ namespace WPEFramework
                 LOGERR("Failed to parse hard power info JSON");
                 return result;
             }
+			
             rebootInfo.timestamp = timestamp;
             rebootInfo.source = source;
             rebootInfo.reason = reason;
@@ -497,4 +499,23 @@ bool getFileContent(std::string fileName, std::list<std::string> & listOfStrs)
     }
     inFile.close();
     return retStatus;
+}
+
+/***
+ * @brief       : Used to read file contents into a string
+ * @param1[in]  : Complete file name with path
+ * @param2[out] : Destination string object filled with file contents
+ * @return      : <bool>; TRUE if operation success; else FALSE.
+ */
+bool getFileContent(std::string fileName, std::string& fileContent)
+{
+    std::ifstream inFile(fileName.c_str(), ios::in);
+    if (!inFile.is_open()) return false;
+
+    std::stringstream buffer;
+    buffer << inFile.rdbuf();
+    fileContent = buffer.str();
+    inFile.close();
+
+    return true;
 }
