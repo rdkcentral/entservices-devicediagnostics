@@ -352,12 +352,12 @@ namespace WPEFramework
             
             success = false;
             if (!Utils::fileExists(PREVIOUS_REBOOT_INFO_FILE)) {
-		       LOGERR("Failed to get previous reboot info, %s not found or can't be opened for reading", PREVIOUS_REBOOT_INFO_FILE);
+		       LOGERR("Failed to get previous reboot info, %s file does not exist", PREVIOUS_REBOOT_INFO_FILE);
 		       return result;
 	        }
 
 	        if (!Utils::fileExists(HARD_POWER_INFO_FILE)) {
-               LOGERR("Failed to get previous reboot info, %s not found or can't be opened for reading", HARD_POWER_INFO_FILE);
+               LOGERR("Failed to get previous reboot info, %s file does not exist", HARD_POWER_INFO_FILE);
                return result;
             }
 
