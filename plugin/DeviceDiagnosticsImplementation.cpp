@@ -23,8 +23,11 @@
 #include <fstream>
 
 #include "UtilsJsonRpc.h"
+#include "UtilsfileExists.h"
 
 #define MILESTONES_LOG_FILE                     "/opt/logs/rdk_milestones.log"
+#define PREVIOUS_REBOOT_INFO_FILE "/opt/persistent/previousRebootInfo.json"
+#define HARD_POWER_INFO_FILE      "/opt/persistent/hardPowerInfo.json"
 
 
 /***
@@ -279,7 +282,7 @@ namespace WPEFramework
 
             LOGINFO("");
 
-            if (Core::File(string(MILESTONES_LOG_FILE)).Exists())
+            if (Utils::fileExists(MILESTONES_LOG_FILE))
             {
                 retAPIStatus = getFileContent(MILESTONES_LOG_FILE, list);
                 if (!retAPIStatus)
@@ -334,6 +337,73 @@ namespace WPEFramework
 #else
             AVDecoderStatus.avDecoderStatus = decoderStatusStr[0];
 #endif
+            return Core::ERROR_NONE;
+        }
+
+        Core::hresult DeviceDiagnosticsImplementation::GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success)
+        {
+            LOGINFO("");
+            
+            bool retAPIStatus = false;
+            uint8_t parseStatus = 0;
+            string timestamp, source, reason, customReason, otherReason, lastHardPowerReset;
+            string rebootInfoContent;
+            string hardPowerInfo;
+            Core::hresult result = Core::ERROR_GENERAL;
+            
+            
+            if (!Utils::fileExists(PREVIOUS_REBOOT_INFO_FILE)) {
+		       LOGERR("Failed to get previous reboot info, %s not found or can't be opened for reading", PREVIOUS_REBOOT_INFO_FILE);
+		       return result;
+	        }
+
+	        if (!Utils::fileExists(HARD_POWER_INFO_FILE)) {
+               LOGERR("Failed to get previous reboot info, %s not found or can't be opened for reading", HARD_POWER_INFO_FILE);
+               return result;
+            }
+
+            retAPIStatus = getFileContent(PREVIOUS_REBOOT_INFO_FILE, rebootInfoContent);
+            if (!retAPIStatus || rebootInfoContent.empty()) {
+                LOGERR("Failed to read reboot info file or file is empty");
+		        return result;
+            }
+            JsonObject rebootInfoJson;
+            if (rebootInfoJson.FromString(rebootInfoContent)) {
+                timestamp = rebootInfoJson["timestamp"].String();
+                source = rebootInfoJson["source"].String();
+                reason = rebootInfoJson["reason"].String();
+                customReason = rebootInfoJson["customReason"].String();     
+                otherReason = rebootInfoJson["otherReason"].String();
+            } else {
+                LOGERR("Failed to parse reboot info JSON");
+                return result;
+            }
+            bool hardPowerStatus = getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo);
+            if (!hardPowerStatus || hardPowerInfo.empty()) {
+                LOGERR("Failed to read hard power info file or file is empty");
+                return result;
+            }
+            JsonObject hardPowerInfoJson;
+            if (hardPowerInfoJson.FromString(hardPowerInfo)) {
+                lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();
+                
+            } else {
+                LOGERR("Failed to parse hard power info JSON");
+                return result;
+            }
+            rebootInfo.timestamp = timestamp;
+            rebootInfo.source = source;
+            rebootInfo.reason = reason;
+            rebootInfo.customReason = customReason;
+            rebootInfo.otherReason = otherReason;
+            rebootInfo.lastHardPowerReset = lastHardPowerReset;
+            
+            // Set success based on whether we successfully parsed at least the reboot info
+            success = true;
+            
+            LOGINFO("GetPreviousRebootInfo: success=%d, timestamp=%s, source=%s, reason=%s", 
+                    success, timestamp.c_str(), source.c_str(), reason.c_str());
+            
             return Core::ERROR_NONE;
         }
 
