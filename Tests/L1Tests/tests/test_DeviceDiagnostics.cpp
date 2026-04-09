@@ -162,3 +162,232 @@ TEST_F(DeviceDiagnosticsTest, getAVDecoderStatus)
     EXPECT_EQ(Core::ERROR_NONE, handler_.Invoke(connection, _T("getAVDecoderStatus"), _T("{}"), response));
     EXPECT_EQ(response, _T("{\"avDecoderStatus\":\"IDLE\"}"));
 }
+
+/************Test case Details **************************
+** Test 3.1: Successful reboot info retrieval with both files present and all fields populated
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_Success_AllFields)
+{
+    // Create test directory
+    system("mkdir -p /opt/secure/reboot");
+    
+    // Create primary reboot info file with all fields
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"PowerKey\","
+                << "\"reason\":\"UserRequested\","
+                << "\"customReason\":\"Remote control power button\","
+                << "\"otherReason\":\"Scheduled maintenance\"}";
+    primaryFile.close();
+    
+    // Create hard power info file
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
+    hardPowerFile.close();
+    
+    // Test the API
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+    
+    EXPECT_EQ(result, Core::ERROR_NONE);
+    EXPECT_EQ(success, true);
+    EXPECT_EQ(rebootInfo.timestamp, "2024-01-15T10:30:45Z");
+    EXPECT_EQ(rebootInfo.source, "PowerKey");
+    EXPECT_EQ(rebootInfo.reason, "UserRequested");
+    EXPECT_EQ(rebootInfo.customReason, "Remote control power button");
+    EXPECT_EQ(rebootInfo.otherReason, "Scheduled maintenance");
+    EXPECT_EQ(rebootInfo.lastHardPowerReset, "2024-01-10T08:15:30Z");
+    
+    // Cleanup
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
+}
+
+/************Test case Details **************************
+** Test 3.2: Primary file exists but hardpower.info missing scenario
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
+{
+    // Create test directory
+    system("mkdir -p /opt/secure/reboot");
+    
+    // Create only primary reboot info file
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"PowerKey\","
+                << "\"reason\":\"UserRequested\","
+                << "\"customReason\":\"Remote control\","
+                << "\"otherReason\":\"None\"}";
+    primaryFile.close();
+    
+    // Make sure hardpower.info doesn't exist
+    remove("/opt/secure/reboot/hardpower.info");
+    
+    // Test the API
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+    
+    // Should return ERROR_GENERAL since hardpower.info is missing (based on current implementation)
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_EQ(success, false);
+    
+    // Cleanup
+    remove("/opt/secure/reboot/previousreboot.info");
+}
+
+/************Test case Details **************************
+** Test 3.3: Primary reboot info file not found scenario (should return ERROR_GENERAL)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_PrimaryFileMissing)
+{
+    // Ensure files don't exist
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
+    
+    // Test the API
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+    
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_EQ(success, false);
+}
+
+/************Test case Details **************************
+** Test 3.4: Invalid JSON in primaryreboot.info (should return ERROR_GENERAL)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
+{
+    // Create test directory
+    system("mkdir -p /opt/secure/reboot");
+    
+    // Create primary file with invalid JSON
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "This is not valid JSON content{broken";
+    primaryFile.close();
+    
+    // Create valid hard power file
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
+    hardPowerFile.close();
+    
+    // Test the API
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+    
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_EQ(success, false);
+    
+    // Cleanup
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
+}
+
+/************Test case Details **************************
+** Test 3.5: Invalid JSON in hardpower.info (should return ERROR_GENERAL based on current implementation)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
+{
+    // Create test directory
+    system("mkdir -p /opt/secure/reboot");
+    
+    // Create valid primary file
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"PowerKey\","
+                << "\"reason\":\"UserRequested\","
+                << "\"customReason\":\"Remote control\","
+                << "\"otherReason\":\"None\"}";
+    primaryFile.close();
+    
+    // Create hard power file with invalid JSON
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "Invalid JSON content here{";
+    hardPowerFile.close();
+    
+    // Test the API
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+    
+    // Based on current implementation, this should return ERROR_GENERAL
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_EQ(success, false);
+    
+    // Cleanup
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
+}
+
+/************Test case Details **************************
+** Test 3.6: Missing fields in JSON files (empty strings returned)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
+{
+    // Create test directory
+    system("mkdir -p /opt/secure/reboot");
+    
+    // Create primary file with only some fields
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"PowerKey\"}";
+    primaryFile.close();
+    
+    // Create hard power file without any fields
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{}";
+    hardPowerFile.close();
+    
+    // Test the API
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+    
+    EXPECT_EQ(result, Core::ERROR_NONE);
+    EXPECT_EQ(success, true);
+    EXPECT_EQ(rebootInfo.timestamp, "2024-01-15T10:30:45Z");
+    EXPECT_EQ(rebootInfo.source, "PowerKey");
+    // Missing fields should be empty strings
+    EXPECT_EQ(rebootInfo.reason, "");
+    EXPECT_EQ(rebootInfo.customReason, "");
+    EXPECT_EQ(rebootInfo.otherReason, "");
+    EXPECT_EQ(rebootInfo.lastHardPowerReset, "");
+    
+    // Cleanup
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
+}
+
+/************Test case Details **************************
+** Test 3.7: Empty primary file (should return ERROR_GENERAL)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_EmptyPrimaryFile)
+{
+    // Create test directory
+    system("mkdir -p /opt/secure/reboot");
+    
+    // Create empty primary file
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "";
+    primaryFile.close();
+    
+    // Create valid hard power file
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
+    hardPowerFile.close();
+    
+    // Test the API
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+    
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_EQ(success, false);
+    
+    // Cleanup
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
+}
