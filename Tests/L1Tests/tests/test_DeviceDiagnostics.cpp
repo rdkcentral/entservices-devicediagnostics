@@ -19,6 +19,7 @@
 
 #include "gtest/gtest.h"
 #include <gmock/gmock.h>
+#include <fstream>
 
 #include "DeviceDiagnostics.h"
 #include "ThunderPortability.h"
@@ -169,7 +170,7 @@ TEST_F(DeviceDiagnosticsTest, getAVDecoderStatus)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_Success_AllFields)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create primary reboot info file with all fields
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -210,7 +211,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_Success_AllFields)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create only primary reboot info file
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -261,7 +262,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_PrimaryFileMissing)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create primary file with invalid JSON
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -292,7 +293,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create valid primary file
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -328,7 +329,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create primary file with only some fields
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -367,7 +368,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_EmptyPrimaryFile)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create empty primary file
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");

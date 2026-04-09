@@ -24,7 +24,6 @@
 #include <sstream>
 
 #include "UtilsJsonRpc.h"
-#include "UtilsfileExists.h"
 
 #define MILESTONES_LOG_FILE                     "/opt/logs/rdk_milestones.log"
 #define PREVIOUS_REBOOT_INFO_FILE              "/opt/secure/reboot/previousreboot.info"
@@ -425,12 +424,12 @@ namespace WPEFramework
             Core::hresult result = Core::ERROR_GENERAL;
             
             success = false;
-            if (!Utils::fileExists(PREVIOUS_REBOOT_INFO_FILE)) {
+            if (!Core::File(string(PREVIOUS_REBOOT_INFO_FILE)).Exists()) {
 		       LOGERR("Failed to get previous reboot info, %s file does not exist", PREVIOUS_REBOOT_INFO_FILE);
 		       return result;
 	        }
 
-	        if (!Utils::fileExists(HARD_POWER_INFO_FILE)) {
+	        if (!Core::File(string(HARD_POWER_INFO_FILE)).Exists()) {
                LOGERR("Failed to get previous reboot info, %s file does not exist", HARD_POWER_INFO_FILE);
                return result;
             }

@@ -706,7 +706,7 @@ TEST_F(DeviceDiagnostics_L2test, GetMilestones_COMRPC)
 TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_Success_COMRPC)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create primary reboot info file with all fields
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -776,7 +776,7 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_PrimaryFileMissing_COMRPC
 TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_HardPowerFileMissing_COMRPC)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create only primary reboot info file
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -811,7 +811,7 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_HardPowerFileMissing_COMR
 TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_InvalidPrimaryJSON_COMRPC)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create primary file with invalid JSON
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -844,7 +844,7 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_InvalidPrimaryJSON_COMRPC
 TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_MissingFields_COMRPC)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create primary file with only some fields
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -889,7 +889,7 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_MissingFields_COMRPC)
 TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_EmptyPrimaryFile_COMRPC)
 {
     // Create test directory
-    system("mkdir -p /opt/secure/reboot");
+    (void)system("mkdir -p /opt/secure/reboot");
     
     // Create empty primary file
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
