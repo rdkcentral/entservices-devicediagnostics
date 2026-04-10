@@ -138,7 +138,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-devicediagnostics
           path: entservices-devicediagnostics
-          ref: develop
+          ref: feature/RDKEMW-16778_1
 
       - name: Checkout googletest
         uses: actions/checkout@v3
