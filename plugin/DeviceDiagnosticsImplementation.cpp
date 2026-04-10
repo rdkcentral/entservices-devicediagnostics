@@ -413,7 +413,7 @@ namespace WPEFramework
             return result;
         }
 
-        Core::hresult DeviceDiagnosticsImplementation::GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success) const
+        Core::hresult DeviceDiagnosticsImplementation::GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success)
         {
             LOGINFO("");
             
