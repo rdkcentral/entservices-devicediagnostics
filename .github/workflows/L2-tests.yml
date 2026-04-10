@@ -100,14 +100,14 @@ jobs:
         with:
           repository: rdkcentral/entservices-devicediagnostics
           path: entservices-devicediagnostics
-          ref: develop
+          ref: feature/RDKEMW-16778_1
 
       - name: Checkout entservices-testframework
         uses: actions/checkout@v3
         with:
           repository: rdkcentral/entservices-testframework
           path: entservices-testframework
-          ref: 1.0.1
+          ref: feature/RDKEMW-16778_1
 
       - name: Checkout googletest
         if: steps.cache.outputs.cache-hit != 'true'
