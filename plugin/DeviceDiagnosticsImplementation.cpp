@@ -44,7 +44,7 @@ bool getFileContent(std::string fileName, std::list<std::string> & listOfStrs);
  * @param2[out] : Destination string buffer to be filled with file contents
  * @return : <bool>; TRUE if operation success; else FALSE.
  */
-static bool getFileContentAsString(const std::string& fileName, std::string& fileContent);
+bool getFileContent(const std::string& fileName, std::string& fileContent);
 
 namespace WPEFramework
 {
@@ -492,7 +492,7 @@ namespace WPEFramework
  */
 bool getFileContent(std::string fileName, std::string& fileContent)
 {
-    std::ifstream inFile(fileName.c_str(), ios::in);
+    std::ifstream inFile(fileName.c_str(), std::ios::in);
     if (!inFile.is_open()) return false;
 
     std::stringstream buffer;
