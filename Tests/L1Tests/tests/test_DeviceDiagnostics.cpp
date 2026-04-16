@@ -1,17 +1,6 @@
 #include <cstdio>
 
-// Helper to assert remove success or file not found
-static void AssertRemove(const char* path) {
-    int rc = remove(path);
-    ASSERT_TRUE(rc == 0 || errno == ENOENT) << "Failed to remove file: " << path << ", errno: " << errno;
-}
-#include <cerrno>
 
-// Helper to assert mkdir success or EEXIST
-static void AssertMkdir(const char* path, mode_t mode) {
-    int rc = mkdir(path, mode);
-    ASSERT_TRUE(rc == 0 || errno == EEXIST) << "Failed to create directory: " << path << ", errno: " << errno;
-}
 /**
  * If not stated otherwise in this file or this component's LICENSE
  * file the following copyright and licenses apply:
@@ -49,6 +38,19 @@ static void AssertMkdir(const char* path, mode_t mode) {
 using namespace WPEFramework;
 using ::testing::NiceMock;
 
+// Helper to assert remove success or file not found
+static void AssertRemove(const char* path) {
+    int rc = remove(path);
+    ASSERT_TRUE(rc == 0 || errno == ENOENT) << "Failed to remove file: " << path << ", errno: " << errno;
+}
+#include <cerrno>
+
+// Helper to assert mkdir success or EEXIST
+static void AssertMkdir(const char* path, mode_t mode) {
+    int rc = mkdir(path, mode);
+    ASSERT_TRUE(rc == 0 || errno == EEXIST) << "Failed to create directory: " << path << ", errno: " << errno;
+}
+
 class DeviceDiagnosticsTest : public ::testing::Test {
 protected:
     Core::ProxyType<Plugin::DeviceDiagnostics> deviceDiagnostic_;
@@ -57,7 +59,6 @@ protected:
     NiceMock<ServiceMock> service;
     NiceMock<COMLinkMock> comLinkMock;
     Core::ProxyType<WorkerPoolImplementation> workerPool;
-    Core::ProxyType<Plugin::DeviceDiagnosticsImplementation> DevDiagImpl;
     Exchange::IDeviceDiagnostics::INotification *DevDiagNotification = nullptr;
     string response;
     WrapsImplMock *p_wrapsImplMock   = nullptr;
@@ -85,22 +86,10 @@ protected:
                 return Core::ERROR_NONE;;
             }));
 
-        ON_CALL(comLinkMock, Instantiate(::testing::_, ::testing::_, ::testing::_))
-        .WillByDefault(::testing::Invoke(
-        [&](const RPC::Object& object, const uint32_t waitTime, uint32_t& connectionId) {
-            DevDiagImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
-            return &DevDiagImpl;
-            }));
-
         Core::IWorkerPool::Assign(&(*workerPool));
         workerPool->Run();
 
         deviceDiagnostic_->Initialize(&service);
-
-        // Ensure DevDiagImpl is always initialized for all test cases
-        if (!DevDiagImpl) {
-            DevDiagImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
-        }
     }
   
     virtual ~DeviceDiagnosticsTest()
@@ -208,19 +197,23 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_Success_AllFields)
     hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
     hardPowerFile.close();
     
-    // Test the API
-    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
-    bool success = false;
-    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
-    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
     EXPECT_EQ(result, Core::ERROR_NONE);
-    EXPECT_EQ(success, true);
-    EXPECT_EQ(rebootInfo.timestamp, "2024-01-15T10:30:45Z");
-    EXPECT_EQ(rebootInfo.source, "PowerKey");
-    EXPECT_EQ(rebootInfo.reason, "UserRequested");
-    EXPECT_EQ(rebootInfo.customReason, "Remote control power button");
-    EXPECT_EQ(rebootInfo.otherReason, "Scheduled maintenance");
-    EXPECT_EQ(rebootInfo.lastHardPowerReset, "2024-01-10T08:15:30Z");
+
+    JsonObject respJson;
+    ASSERT_TRUE(respJson.FromString(response));
+    ASSERT_TRUE(respJson.HasLabel("rebootInfo"));
+    const JsonObject& rebootInfo = respJson["rebootInfo"].Object();
+    EXPECT_EQ(rebootInfo["timestamp"].String(), "2024-01-15T10:30:45Z");
+    EXPECT_EQ(rebootInfo["source"].String(), "PowerKey");
+    EXPECT_EQ(rebootInfo["reason"].String(), "UserRequested");
+    EXPECT_EQ(rebootInfo["customReason"].String(), "Remote control power button");
+    EXPECT_EQ(rebootInfo["otherReason"].String(), "Scheduled maintenance");
+    EXPECT_EQ(rebootInfo["lastHardPowerReset"].String(), "2024-01-10T08:15:30Z");
+    ASSERT_TRUE(respJson.HasLabel("success"));
+    EXPECT_TRUE(respJson["success"].Boolean());
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");
@@ -248,14 +241,14 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
     // Make sure hardpower.info doesn't exist
     AssertRemove("/opt/secure/reboot/hardpower.info");
     
-    // Test the API
-    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
-    bool success = false;
-    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
-    
-    // Should return ERROR_GENERAL since hardpower.info is missing (based on current implementation)
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
     EXPECT_EQ(result, Core::ERROR_GENERAL);
-    EXPECT_EQ(success, false);
+    JsonObject respJson;
+    ASSERT_TRUE(respJson.FromString(response));
+    ASSERT_TRUE(respJson.HasLabel("success"));
+    EXPECT_FALSE(respJson["success"].Boolean());
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");
@@ -270,13 +263,14 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_PrimaryFileMissing)
     AssertRemove("/opt/secure/reboot/previousreboot.info");
     AssertRemove("/opt/secure/reboot/hardpower.info");
     
-    // Test the API
-    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
-    bool success = false;
-    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
-    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
     EXPECT_EQ(result, Core::ERROR_GENERAL);
-    EXPECT_EQ(success, false);
+    JsonObject respJson;
+    ASSERT_TRUE(respJson.FromString(response));
+    ASSERT_TRUE(respJson.HasLabel("success"));
+    EXPECT_FALSE(respJson["success"].Boolean());
 }
 
 /************Test case Details **************************
@@ -298,13 +292,14 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
     hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
     hardPowerFile.close();
     
-    // Test the API
-    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
-    bool success = false;
-    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
-    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
     EXPECT_EQ(result, Core::ERROR_GENERAL);
-    EXPECT_EQ(success, false);
+    JsonObject respJson;
+    ASSERT_TRUE(respJson.FromString(response));
+    ASSERT_TRUE(respJson.HasLabel("success"));
+    EXPECT_FALSE(respJson["success"].Boolean());
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");
@@ -334,14 +329,14 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
     hardPowerFile << "Invalid JSON content here{";
     hardPowerFile.close();
     
-    // Test the API
-    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
-    bool success = false;
-    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
-    
-    // Based on current implementation, this should return ERROR_GENERAL
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
     EXPECT_EQ(result, Core::ERROR_GENERAL);
-    EXPECT_EQ(success, false);
+    JsonObject respJson;
+    ASSERT_TRUE(respJson.FromString(response));
+    ASSERT_TRUE(respJson.HasLabel("success"));
+    EXPECT_FALSE(respJson["success"].Boolean());
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");
@@ -368,20 +363,23 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
     hardPowerFile << "{}";
     hardPowerFile.close();
     
-    // Test the API
-    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
-    bool success = false;
-    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
-    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
     EXPECT_EQ(result, Core::ERROR_NONE);
-    EXPECT_EQ(success, true);
-    EXPECT_EQ(rebootInfo.timestamp, "2024-01-15T10:30:45Z");
-    EXPECT_EQ(rebootInfo.source, "PowerKey");
+    JsonObject respJson;
+    ASSERT_TRUE(respJson.FromString(response));
+    ASSERT_TRUE(respJson.HasLabel("rebootInfo"));
+    const JsonObject& rebootInfo = respJson["rebootInfo"].Object();
+    EXPECT_EQ(rebootInfo["timestamp"].String(), "2024-01-15T10:30:45Z");
+    EXPECT_EQ(rebootInfo["source"].String(), "PowerKey");
     // Missing fields should be empty strings
-    EXPECT_EQ(rebootInfo.reason, "");
-    EXPECT_EQ(rebootInfo.customReason, "");
-    EXPECT_EQ(rebootInfo.otherReason, "");
-    EXPECT_EQ(rebootInfo.lastHardPowerReset, "");
+    EXPECT_EQ(rebootInfo["reason"].String(), "");
+    EXPECT_EQ(rebootInfo["customReason"].String(), "");
+    EXPECT_EQ(rebootInfo["otherReason"].String(), "");
+    EXPECT_EQ(rebootInfo["lastHardPowerReset"].String(), "");
+    ASSERT_TRUE(respJson.HasLabel("success"));
+    EXPECT_TRUE(respJson["success"].Boolean());
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");
@@ -407,13 +405,14 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_EmptyPrimaryFile)
     hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
     hardPowerFile.close();
     
-    // Test the API
-    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
-    bool success = false;
-    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
-    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
     EXPECT_EQ(result, Core::ERROR_GENERAL);
-    EXPECT_EQ(success, false);
+    JsonObject respJson;
+    ASSERT_TRUE(respJson.FromString(response));
+    ASSERT_TRUE(respJson.HasLabel("success"));
+    EXPECT_FALSE(respJson["success"].Boolean());
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");

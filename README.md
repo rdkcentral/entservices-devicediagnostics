@@ -35,9 +35,26 @@ curl --header "Content-Type: application/json" \
 
 ## Required Files
 
-For **getPreviousRebootInfo** API to work, the following files must be present:
-- `/opt/secure/reboot/previousreboot.info` - Contains reboot metadata (timestamp, source, reason)
-- `/opt/secure/reboot/hardpower.info` - Contains last hardware power reset timestamp
+For **getPreviousRebootInfo** API to work, the following files must be present, both in JSON format:
+- `/opt/secure/reboot/previousreboot.info` - Contains reboot metadata as a JSON object with fields:
+
+     ```json
+     {
+          "timestamp": "<string>",
+          "source": "<string>",
+          "reason": "<string>",
+          "customReason": "<string>",
+          "otherReason": "<string>"
+     }
+     ```
+
+- `/opt/secure/reboot/hardpower.info` - Contains last hardware power reset timestamp as a JSON object:
+
+     ```json
+     {
+          "lastHardPowerReset": "<string>"
+     }
+     ```
 
 ## License
 

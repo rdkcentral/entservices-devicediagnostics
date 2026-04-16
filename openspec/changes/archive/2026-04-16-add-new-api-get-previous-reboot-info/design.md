@@ -21,8 +21,10 @@ The DeviceDiagnostics plugin currently lacks an API to retrieve the previous reb
   - `Core::hresult GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success);`
   - `RebootInfo` struct will contain: timestamp, source, reason, customReason, otherReason, lastHardPowerReset.
 - **File Parsing:**
-  - `/opt/secure/reboot/previousreboot.info` will be parsed for all fields except `lastHardPowerReset`, which comes from `/opt/secure/reboot/hardpower.info`.
-  - If files are missing or fields are absent, the API will return `Core::ERROR_GENERAL` and set `success` to false.
+  - `/opt/secure/reboot/previousreboot.info` is expected to be a JSON object with fields: timestamp, source, reason, customReason, otherReason.
+  - `/opt/secure/reboot/hardpower.info` is expected to be a JSON object with field: lastHardPowerReset.
+  - If either file is missing, unreadable, or contains invalid JSON, the API will return `Core::ERROR_GENERAL` and set `success` to false.
+  - If fields are missing in the JSON, the corresponding output fields will be empty strings.
 - **Reference Implementation:**
   - Use the logic from `SystemServices::getPreviousRebootInfo2()` as a reference for file parsing and error handling.
 - **Response Format:**

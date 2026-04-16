@@ -24,12 +24,12 @@
 - [x] 3.2 Initialize RebootInfo structure with empty strings for all fields
 - [x] 3.3 Implement parsing logic for `/opt/secure/reboot/previousreboot.info`:
   - Open file with ifstream
-  - Read line by line
-  - Parse key=value format
-  - Extract: timestamp, source, reason, customReason, otherReason
+  - Parse as a JSON object
+  - Extract: timestamp, source, reason, customReason, otherReason fields from JSON
 - [x] 3.4 Implement reading logic for `/opt/secure/reboot/hardpower.info`:
   - Open file with ifstream
-  - Read single line for lastHardPowerReset timestamp
+  - Parse as a JSON object
+  - Extract lastHardPowerReset field from JSON
 - [x] 3.5 Add error handling for file open failures (log with LOGERR)
 - [x] 3.6 Add error handling for parse failures (malformed content)
 - [x] 3.7 Set `success` parameter based on whether data was retrieved
