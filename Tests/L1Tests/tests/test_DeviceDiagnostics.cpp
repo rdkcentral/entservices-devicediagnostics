@@ -68,7 +68,7 @@ protected:
         : deviceDiagnostic_(Core::ProxyType<Plugin::DeviceDiagnostics>::Create())
         , handler_(*deviceDiagnostic_)
         , INIT_CONX(1, 0)
-	        , workerPool(Core::ProxyType<WorkerPoolImplementation>::Create(
+        , workerPool(Core::ProxyType<WorkerPoolImplementation>::Create(
             2, Core::Thread::DefaultStackSize(), 16))
     {
         p_serviceMock = new NiceMock <ServiceMock>;
@@ -96,6 +96,11 @@ protected:
         workerPool->Run();
 
         deviceDiagnostic_->Initialize(&service);
+
+        // Ensure DevDiagImpl is always initialized for all test cases
+        if (!DevDiagImpl) {
+            DevDiagImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
+        }
     }
   
     virtual ~DeviceDiagnosticsTest()
