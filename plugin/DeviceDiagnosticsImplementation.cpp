@@ -466,12 +466,12 @@ namespace WPEFramework
                 return result;
             }
 			
-            rebootInfo.timestamp = timestamp;
-            rebootInfo.source = source;
-            rebootInfo.reason = reason;
-            rebootInfo.customReason = customReason;
-            rebootInfo.otherReason = otherReason;
-            rebootInfo.lastHardPowerReset = lastHardPowerReset;
+            rebootInfo.timestamp = std::move(timestamp);
+            rebootInfo.source = std::move(source);
+            rebootInfo.reason = std::move(reason);
+            rebootInfo.customReason = std::move(customReason);
+            rebootInfo.otherReason = std::move(otherReason);
+            rebootInfo.lastHardPowerReset = std::move(lastHardPowerReset);
             
             // Set success based on whether we successfully parsed at least the reboot info
             success = true;
