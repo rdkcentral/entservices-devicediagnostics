@@ -1,3 +1,17 @@
+#include <cstdio>
+
+// Helper to assert remove success or file not found
+static void AssertRemove(const char* path) {
+    int rc = remove(path);
+    ASSERT_TRUE(rc == 0 || errno == ENOENT) << "Failed to remove file: " << path << ", errno: " << errno;
+}
+#include <cerrno>
+
+// Helper to assert mkdir success or EEXIST
+static void AssertMkdir(const char* path, mode_t mode) {
+    int rc = mkdir(path, mode);
+    ASSERT_TRUE(rc == 0 || errno == EEXIST) << "Failed to create directory: " << path << ", errno: " << errno;
+}
 /**
  * If not stated otherwise in this file or this component's LICENSE
  * file the following copyright and licenses apply:
@@ -172,8 +186,8 @@ TEST_F(DeviceDiagnosticsTest, getAVDecoderStatus)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_Success_AllFields)
 {
     // Create test directory
-    mkdir("/opt/secure", 0755);
-    mkdir("/opt/secure/reboot", 0755);
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
     
     // Create primary reboot info file with all fields
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -204,8 +218,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_Success_AllFields)
     EXPECT_EQ(rebootInfo.lastHardPowerReset, "2024-01-10T08:15:30Z");
     
     // Cleanup
-    remove("/opt/secure/reboot/previousreboot.info");
-    remove("/opt/secure/reboot/hardpower.info");
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
 }
 
 /************Test case Details **************************
@@ -214,8 +228,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_Success_AllFields)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
 {
     // Create test directory
-    mkdir("/opt/secure", 0755);
-    mkdir("/opt/secure/reboot", 0755);
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
     
     // Create only primary reboot info file
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -227,7 +241,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
     primaryFile.close();
     
     // Make sure hardpower.info doesn't exist
-    remove("/opt/secure/reboot/hardpower.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
     
     // Test the API
     Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
@@ -239,7 +253,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
     EXPECT_EQ(success, false);
     
     // Cleanup
-    remove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
 }
 
 /************Test case Details **************************
@@ -248,8 +262,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_PrimaryFileMissing)
 {
     // Ensure files don't exist
-    remove("/opt/secure/reboot/previousreboot.info");
-    remove("/opt/secure/reboot/hardpower.info");
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
     
     // Test the API
     Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
@@ -266,8 +280,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_PrimaryFileMissing)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
 {
     // Create test directory
-    mkdir("/opt/secure", 0755);
-    mkdir("/opt/secure/reboot", 0755);
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
     
     // Create primary file with invalid JSON
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -288,8 +302,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
     EXPECT_EQ(success, false);
     
     // Cleanup
-    remove("/opt/secure/reboot/previousreboot.info");
-    remove("/opt/secure/reboot/hardpower.info");
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
 }
 
 /************Test case Details **************************
@@ -298,8 +312,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
 {
     // Create test directory
-    mkdir("/opt/secure", 0755);
-    mkdir("/opt/secure/reboot", 0755);
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
     
     // Create valid primary file
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -325,8 +339,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
     EXPECT_EQ(success, false);
     
     // Cleanup
-    remove("/opt/secure/reboot/previousreboot.info");
-    remove("/opt/secure/reboot/hardpower.info");
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
 }
 
 /************Test case Details **************************
@@ -335,8 +349,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
 {
     // Create test directory
-    mkdir("/opt/secure", 0755);
-    mkdir("/opt/secure/reboot", 0755);
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
     
     // Create primary file with only some fields
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -365,8 +379,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
     EXPECT_EQ(rebootInfo.lastHardPowerReset, "");
     
     // Cleanup
-    remove("/opt/secure/reboot/previousreboot.info");
-    remove("/opt/secure/reboot/hardpower.info");
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
 }
 
 /************Test case Details **************************
@@ -375,8 +389,8 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_EmptyPrimaryFile)
 {
     // Create test directory
-    mkdir("/opt/secure", 0755);
-    mkdir("/opt/secure/reboot", 0755);
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
     
     // Create empty primary file
     std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
@@ -397,6 +411,6 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_EmptyPrimaryFile)
     EXPECT_EQ(success, false);
     
     // Cleanup
-    remove("/opt/secure/reboot/previousreboot.info");
-    remove("/opt/secure/reboot/hardpower.info");
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
 }
