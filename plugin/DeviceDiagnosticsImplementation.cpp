@@ -475,10 +475,7 @@ namespace WPEFramework
             
             // Set success based on whether we successfully parsed at least the reboot info
             success = true;
-            
-            LOGINFO("GetPreviousRebootInfo: success=%d, timestamp=%s, source=%s, reason=%s", 
-                    success, timestamp.c_str(), source.c_str(), reason.c_str());
-            
+                 
             return Core::ERROR_NONE;
         }
     } // namespace Plugin
