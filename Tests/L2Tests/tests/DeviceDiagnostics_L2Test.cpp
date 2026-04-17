@@ -875,11 +875,11 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_MissingFields_COMRPC)
     EXPECT_EQ(rebootInfo.timestamp, "2024-01-15T10:30:45Z");
     EXPECT_EQ(rebootInfo.source, "SoftwareUpdate");
     
-    // Missing fields should be empty strings
-    EXPECT_EQ(rebootInfo.reason, "");
-    EXPECT_EQ(rebootInfo.customReason, "");
-    EXPECT_EQ(rebootInfo.otherReason, "");
-    EXPECT_EQ(rebootInfo.lastHardPowerReset, "");
+    // Missing fields should be "null" strings (JsonObject returns "null" for missing fields)
+    EXPECT_EQ(rebootInfo.reason, "null");
+    EXPECT_EQ(rebootInfo.customReason, "null");
+    EXPECT_EQ(rebootInfo.otherReason, "null");
+    EXPECT_EQ(rebootInfo.lastHardPowerReset, "null");
     
     TEST_LOG("Missing fields test - timestamp: %s, source: %s, empty fields verified",
              rebootInfo.timestamp.c_str(), rebootInfo.source.c_str());
