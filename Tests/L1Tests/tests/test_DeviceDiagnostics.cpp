@@ -54,6 +54,7 @@ static void AssertMkdir(const char* path, mode_t mode) {
 class DeviceDiagnosticsTest : public ::testing::Test {
 protected:
     Core::ProxyType<Plugin::DeviceDiagnostics> deviceDiagnostic_;
+    Core::ProxyType<Plugin::DeviceDiagnosticsImplementation> deviceDiagnosticsImpl;
     Core::JSONRPC::Handler& handler_;
     DECL_CORE_JSONRPC_CONX connection;
     NiceMock<ServiceMock> service;
@@ -85,6 +86,30 @@ protected:
                 DevDiagNotification = notification;
                 return Core::ERROR_NONE;;
             }));
+
+        // Mock service->COMLink() to return comLinkMock
+        ON_CALL(service, COMLink())
+            .WillByDefault(::testing::Invoke(
+                [this]() -> WPEFramework::PluginHost::IShell::ICOMLink* {
+                    return &comLinkMock;
+                }));
+
+        // Mock comLinkMock->Instantiate() to return DeviceDiagnosticsImplementation
+#ifdef USE_THUNDER_R4
+        ON_CALL(comLinkMock, Instantiate(::testing::_, ::testing::_, ::testing::_))
+            .WillByDefault(::testing::Invoke(
+                [&](const RPC::Object& object, const uint32_t waitTime, uint32_t& connectionId) -> void* {
+                    deviceDiagnosticsImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
+                    return &deviceDiagnosticsImpl;
+                }));
+#else
+        ON_CALL(comLinkMock, Instantiate(::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_))
+            .WillByDefault(::testing::Invoke(
+                [&](const RPC::Object& object, const uint32_t waitTime, uint32_t& connectionId, const string& className, const string& callsign) -> void* {
+                    deviceDiagnosticsImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
+                    return deviceDiagnosticsImpl;
+                }));
+#endif
 
         Core::IWorkerPool::Assign(&(*workerPool));
         workerPool->Run();
