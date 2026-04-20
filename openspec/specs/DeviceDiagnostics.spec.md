@@ -97,6 +97,6 @@ The DeviceDiagnostics plugin exposes device health and diagnostic information, f
 ---
 
 ## References
-- [DeviceDiagnostics.md](../../DeviceDiagnostics.md)
+- [DeviceDiagnostics.md](https://github.com/rdkcentral/entservices-apis/blob/develop/docs/apis/DeviceDiagnostics.md)
 - [Thunder Framework](https://rdkcentral.github.io/Thunder/)
-- [IDeviceDiagnostics.h](https://github.com/rdkcentral/entservices-apis/tree/main/apis/DeviceDiagnostics/IDeviceDiagnostics.h)
+- [IDeviceDiagnostics.h](https://github.com/rdkcentral/entservices-apis/blob/develop/apis/DeviceDiagnostics/IDeviceDiagnostics.h)
