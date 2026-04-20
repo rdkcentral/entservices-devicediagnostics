@@ -473,7 +473,6 @@ namespace WPEFramework
             rebootInfo.otherReason = std::move(otherReason);
             rebootInfo.lastHardPowerReset = std::move(lastHardPowerReset);
             
-            // Set success based on whether we successfully parsed at least the reboot info
             success = true;
                  
             return Core::ERROR_NONE;
