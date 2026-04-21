@@ -170,7 +170,7 @@ namespace WPEFramework
                     break;
  
                 default:
-                    LOGWARN("Event[%u] not handled", event);
+                    LOGWARN("Event[%u] not handled");
                     break;
             }
             _adminLock.Unlock();
