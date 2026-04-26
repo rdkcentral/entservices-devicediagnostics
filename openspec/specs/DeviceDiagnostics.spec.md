@@ -149,12 +149,40 @@ _Not applicable — no explicit security model defined. Consider restricting acc
 - Coverage targets: all four JSON-RPC methods and the `onAVDecoderStatusChanged` notification.
 
 ## Covered Code
-- `plugin/DeviceDiagnostics.cpp` — `DeviceDiagnostics::Initialize`, `DeviceDiagnostics::Deinitialize`, `DeviceDiagnostics::Information`, `DeviceDiagnostics::Deactivated`
-- `plugin/DeviceDiagnostics.h` — `DeviceDiagnostics` class declaration, `DeviceDiagnostics::Notification` inner class
-- `plugin/DeviceDiagnosticsImplementation.cpp` — `DeviceDiagnosticsImplementation::GetAVDecoderStatus`, `DeviceDiagnosticsImplementation::GetConfiguration`, `DeviceDiagnosticsImplementation::GetMilestones`, `DeviceDiagnosticsImplementation::LogMilestone`, `DeviceDiagnosticsImplementation::Dispatch`
-- `plugin/DeviceDiagnosticsImplementation.h` — `DeviceDiagnosticsImplementation` class declaration, `DeviceDiagnosticsImplementation::Job` inner class
-- `plugin/Module.cpp` — Thunder module registration
-- `plugin/Module.h` — Module macro definitions
+_Generated from codebase scan on 2026-04-26_
+
+- plugin/DeviceDiagnostics.cpp:
+    - DeviceDiagnostics::Initialize
+    - DeviceDiagnostics::Deinitialize
+    - DeviceDiagnostics::Information
+    - DeviceDiagnostics::Deactivated
+
+- plugin/DeviceDiagnostics.h:
+    - DeviceDiagnostics (class declaration)
+    - DeviceDiagnostics::Notification (inner class)
+
+- plugin/DeviceDiagnosticsImplementation.cpp:
+    - DeviceDiagnosticsImplementation::Register
+    - DeviceDiagnosticsImplementation::Unregister
+    - DeviceDiagnosticsImplementation::dispatchEvent
+    - DeviceDiagnosticsImplementation::Dispatch
+    - DeviceDiagnosticsImplementation::getMostActiveDecoderStatus
+    - DeviceDiagnosticsImplementation::onDecoderStatusChange
+    - DeviceDiagnosticsImplementation::GetConfiguration
+    - DeviceDiagnosticsImplementation::GetMilestones
+    - DeviceDiagnosticsImplementation::LogMilestone
+    - DeviceDiagnosticsImplementation::GetAVDecoderStatus
+    - DeviceDiagnosticsImplementation::getConfig
+
+- plugin/DeviceDiagnosticsImplementation.h:
+    - DeviceDiagnosticsImplementation (class declaration)
+    - DeviceDiagnosticsImplementation::Job (inner class)
+
+- plugin/Module.cpp:
+    - MODULE_NAME_DECLARATION
+
+- plugin/Module.h:
+    - Module macro definitions
 
 ---
 
@@ -171,4 +199,5 @@ _Not applicable — no explicit security model defined. Consider restricting acc
 - [Thunder Framework](https://rdkcentral.github.io/Thunder/)
 
 ## Change History
-- [2026-04-23] - openspec-templater - Regenerated to match spec template format.
+- [2026-04-26] - openspec-templater - Updated "Covered Code" section with codebase scan (includes new GetPreviousRebootInfo method).
+- [2026-04-23] - openspec-templater - Regenerated to match spec template format.removed GetPreviousRebootInfo - new change not yet merge
