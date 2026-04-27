@@ -597,8 +597,6 @@ Triggered when the most active AV decoder pipeline status changes.
 
 ## References
 
-- [IDeviceDiagnostics.h — Interface definition](IDeviceDiagnostics.h)
-- [DeviceDiagnostics.md — Plugin documentation](DeviceDiagnostics.md)
 - [Thunder Framework](https://rdkcentral.github.io/Thunder/)
 - [entservices-apis / IDeviceDiagnostics.h](https://github.com/rdkcentral/entservices-apis/tree/main/apis/DeviceDiagnostics/IDeviceDiagnostics.h)
 - [Plugin.instructions.md — Plugin coding guidelines](https://github.com/rdkcentral/entservices-devicediagnostics/blob/develop/.github/instructions/Plugin.instructions.md)
