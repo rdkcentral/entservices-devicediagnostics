@@ -22,6 +22,8 @@
 #include <chrono>
 #include <condition_variable>
 #include <fstream>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <interfaces/IDeviceDiagnostics.h>
@@ -701,108 +703,222 @@ TEST_F(DeviceDiagnostics_L2test, GetMilestones_COMRPC)
 }
 
 /************Test case Details **************************
-** 1. Create previousreboot.info and hardpower.info fixture files.
-** 2. Invoke getPreviousRebootInfo via JSON-RPC.
-** 3. Validate the rebootInfo object and success flag.
+** Test GetPreviousRebootInfo: Successful retrieval with both files present using COMRPC
 *******************************************************/
-
-TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_JSONRPC)
+TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_Success_COMRPC)
 {
-    const std::string rebootInfoPath = "/opt/secure/reboot/previousreboot.info";
-    const std::string hardPowerPath  = "/opt/secure/reboot/hardpower.info";
-
-    // Create fixture files
-    system("mkdir -p /opt/secure/reboot");
-
-    std::ofstream rebootFile(rebootInfoPath);
-    ASSERT_TRUE(rebootFile.is_open()) << "Failed to create previousreboot.info fixture";
-    rebootFile << "reboot_timestamp=20200128083540\n"
-               << "reboot_source=SystemPlugin\n"
-               << "reboot_reason=FIRMWARE_FAILURE\n"
-               << "reboot_custom_reason=API Validation\n"
-               << "reboot_other_reason=API Validation\n";
-    rebootFile.close();
-
-    std::ofstream hardPowerFile(hardPowerPath);
-    ASSERT_TRUE(hardPowerFile.is_open()) << "Failed to create hardpower.info fixture";
-    hardPowerFile << "Tue Jan 28 08:22:22 UTC 2020\n";
+    // Create test directory
+    mkdir("/opt/secure", 0755);
+    mkdir("/opt/secure/reboot", 0755);
+    
+    // Create primary reboot info file with all fields
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"PowerKey\","
+                << "\"reason\":\"UserRequested\","
+                << "\"customReason\":\"Remote control power button\","
+                << "\"otherReason\":\"Scheduled maintenance\"}";
+    primaryFile.close();
+    
+    // Create hard power info file
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
     hardPowerFile.close();
-
-    uint32_t status = Core::ERROR_GENERAL;
-    JsonObject params, result;
-
-    status = InvokeServiceMethod("org.rdk.DeviceDiagnostics.1", "getPreviousRebootInfo", params, result);
-    EXPECT_EQ(Core::ERROR_NONE, status);
-    EXPECT_TRUE(result["success"].Boolean());
-
-    JsonObject rebootInfo = result["rebootInfo"].Object();
-    EXPECT_EQ(rebootInfo["timestamp"].String(),          _T("20200128083540"));
-    EXPECT_EQ(rebootInfo["source"].String(),             _T("SystemPlugin"));
-    EXPECT_EQ(rebootInfo["reason"].String(),             _T("FIRMWARE_FAILURE"));
-    EXPECT_EQ(rebootInfo["customReason"].String(),       _T("API Validation"));
-    EXPECT_EQ(rebootInfo["otherReason"].String(),        _T("API Validation"));
-    EXPECT_EQ(rebootInfo["lastHardPowerReset"].String(), _T("Tue Jan 28 08:22:22 UTC 2020"));
-
-    TEST_LOG("GetPreviousRebootInfo_JSONRPC: result timestamp=%s source=%s reason=%s",
-        rebootInfo["timestamp"].String().c_str(),
-        rebootInfo["source"].String().c_str(),
-        rebootInfo["reason"].String().c_str());
-
+    
+    // Test the API via COM-RPC
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    uint32_t status = m_devdiagplugin->GetPreviousRebootInfo(rebootInfo, success);
+    
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    if (status != Core::ERROR_NONE) {
+        std::string errorMsg = "COM-RPC returned error " + std::to_string(status) + " (" + std::string(Core::ErrorToString(status)) + ")";
+        TEST_LOG("Err: %s", errorMsg.c_str());
+    }
+    
+    EXPECT_EQ(success, true);
+    EXPECT_EQ(rebootInfo.timestamp, "2024-01-15T10:30:45Z");
+    EXPECT_EQ(rebootInfo.source, "PowerKey");
+    EXPECT_EQ(rebootInfo.reason, "UserRequested");
+    EXPECT_EQ(rebootInfo.customReason, "Remote control power button");
+    EXPECT_EQ(rebootInfo.otherReason, "Scheduled maintenance");
+    EXPECT_EQ(rebootInfo.lastHardPowerReset, "2024-01-10T08:15:30Z");
+    
+    TEST_LOG("Retrieved reboot info - timestamp: %s, source: %s, reason: %s",
+             rebootInfo.timestamp.c_str(), rebootInfo.source.c_str(), rebootInfo.reason.c_str());
+    
     // Cleanup
-    remove(rebootInfoPath.c_str());
-    remove(hardPowerPath.c_str());
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
 }
 
 /************Test case Details **************************
-** 1. Create previousreboot.info and hardpower.info fixture files.
-** 2. Invoke GetPreviousRebootInfo via COM-RPC directly.
-** 3. Validate the RebootInfo struct fields and success flag.
+** Test GetPreviousRebootInfo: Primary file missing scenario using COMRPC
 *******************************************************/
-
-TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_COMRPC)
+TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_PrimaryFileMissing_COMRPC)
 {
-    const std::string rebootInfoPath = "/opt/secure/reboot/previousreboot.info";
-    const std::string hardPowerPath  = "/opt/secure/reboot/hardpower.info";
-
-    // Create fixture files
-    system("mkdir -p /opt/secure/reboot");
-
-    std::ofstream rebootFile(rebootInfoPath);
-    ASSERT_TRUE(rebootFile.is_open()) << "Failed to create previousreboot.info fixture";
-    rebootFile << "reboot_timestamp=20200128083540\n"
-               << "reboot_source=SystemPlugin\n"
-               << "reboot_reason=FIRMWARE_FAILURE\n"
-               << "reboot_custom_reason=API Validation\n"
-               << "reboot_other_reason=API Validation\n";
-    rebootFile.close();
-
-    std::ofstream hardPowerFile(hardPowerPath);
-    ASSERT_TRUE(hardPowerFile.is_open()) << "Failed to create hardpower.info fixture";
-    hardPowerFile << "Tue Jan 28 08:22:22 UTC 2020\n";
-    hardPowerFile.close();
-
-    ASSERT_TRUE(m_devdiagplugin != nullptr);
-
+    // Ensure files don't exist
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
+    
+    // Test the API via COM-RPC
     Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
     bool success = false;
-
     uint32_t status = m_devdiagplugin->GetPreviousRebootInfo(rebootInfo, success);
-    EXPECT_EQ(Core::ERROR_NONE, status);
-    EXPECT_TRUE(success);
+    
+    EXPECT_EQ(status, Core::ERROR_GENERAL);
+    EXPECT_EQ(success, false);
+    
+    TEST_LOG("Expected error occurred when primary file missing - status: %u, success: %d", 
+             status, success);
+}
 
-    EXPECT_EQ(rebootInfo.timestamp,          _T("20200128083540"));
-    EXPECT_EQ(rebootInfo.source,             _T("SystemPlugin"));
-    EXPECT_EQ(rebootInfo.reason,             _T("FIRMWARE_FAILURE"));
-    EXPECT_EQ(rebootInfo.customReason,       _T("API Validation"));
-    EXPECT_EQ(rebootInfo.otherReason,        _T("API Validation"));
-    EXPECT_EQ(rebootInfo.lastHardPowerReset, _T("Tue Jan 28 08:22:22 UTC 2020"));
-
-    TEST_LOG("GetPreviousRebootInfo_COMRPC: timestamp=%s source=%s reason=%s",
-        rebootInfo.timestamp.c_str(),
-        rebootInfo.source.c_str(),
-        rebootInfo.reason.c_str());
-
+/************Test case Details **************************
+** Test GetPreviousRebootInfo: Hard power file missing scenario using COMRPC
+*******************************************************/
+TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_HardPowerFileMissing_COMRPC)
+{
+    // Create test directory
+    mkdir("/opt/secure", 0755);
+    mkdir("/opt/secure/reboot", 0755);
+    
+    // Create only primary reboot info file
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"SystemCrash\","
+                << "\"reason\":\"KernelPanic\","
+                << "\"customReason\":\"Out of memory\","
+                << "\"otherReason\":\"System instability\"}";
+    primaryFile.close();
+    
+    // Make sure hardpower.info doesn't exist
+    remove("/opt/secure/reboot/hardpower.info");
+    
+    // Test the API via COM-RPC
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    uint32_t status = m_devdiagplugin->GetPreviousRebootInfo(rebootInfo, success);
+    
+    // Based on current implementation, should return ERROR_GENERAL
+    EXPECT_EQ(status, Core::ERROR_GENERAL);
+    EXPECT_EQ(success, false);
+    
+    TEST_LOG("Hard power file missing - status: %u, success: %d", status, success);
+    
     // Cleanup
-    remove(rebootInfoPath.c_str());
-    remove(hardPowerPath.c_str());
+    remove("/opt/secure/reboot/previousreboot.info");
+}
+
+/************Test case Details **************************
+** Test GetPreviousRebootInfo: Invalid JSON in primary file using COMRPC
+*******************************************************/
+TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_InvalidPrimaryJSON_COMRPC)
+{
+    // Create test directory
+    mkdir("/opt/secure", 0755);
+    mkdir("/opt/secure/reboot", 0755);
+    
+    // Create primary file with invalid JSON
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "This is not valid JSON content{broken";
+    primaryFile.close();
+    
+    // Create valid hard power file
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
+    hardPowerFile.close();
+    
+    // Test the API via COM-RPC
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    uint32_t status = m_devdiagplugin->GetPreviousRebootInfo(rebootInfo, success);
+    
+    EXPECT_EQ(status, Core::ERROR_GENERAL);
+    EXPECT_EQ(success, false);
+    
+    TEST_LOG("Invalid JSON in primary file - status: %u, success: %d", status, success);
+    
+    // Cleanup
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
+}
+
+/************Test case Details **************************
+** Test GetPreviousRebootInfo: Missing fields in JSON files using COMRPC
+*******************************************************/
+TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_MissingFields_COMRPC)
+{
+    // Create test directory
+    mkdir("/opt/secure", 0755);
+    mkdir("/opt/secure/reboot", 0755);
+    
+    // Create primary file with only some fields
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"SoftwareUpdate\"}";
+    primaryFile.close();
+    
+    // Create hard power file without lastHardPowerReset field
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{}";
+    hardPowerFile.close();
+    
+    // Test the API via COM-RPC
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    uint32_t status = m_devdiagplugin->GetPreviousRebootInfo(rebootInfo, success);
+    
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_EQ(success, true);
+    
+    // Verify populated fields
+    EXPECT_EQ(rebootInfo.timestamp, "2024-01-15T10:30:45Z");
+    EXPECT_EQ(rebootInfo.source, "SoftwareUpdate");
+    
+    // Missing fields should be "null" strings (JsonObject returns "null" for missing fields)
+    EXPECT_EQ(rebootInfo.reason, "null");
+    EXPECT_EQ(rebootInfo.customReason, "null");
+    EXPECT_EQ(rebootInfo.otherReason, "null");
+    EXPECT_EQ(rebootInfo.lastHardPowerReset, "null");
+    
+    TEST_LOG("Missing fields test - timestamp: %s, source: %s, empty fields verified",
+             rebootInfo.timestamp.c_str(), rebootInfo.source.c_str());
+    
+    // Cleanup
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
+}
+
+/************Test case Details **************************
+** Test GetPreviousRebootInfo: Empty primary file using COMRPC
+*******************************************************/
+TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_EmptyPrimaryFile_COMRPC)
+{
+    // Create test directory
+    mkdir("/opt/secure", 0755);
+    mkdir("/opt/secure/reboot", 0755);
+    
+    // Create empty primary file
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "";
+    primaryFile.close();
+    
+    // Create valid hard power file
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
+    hardPowerFile.close();
+    
+    // Test the API via COM-RPC
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    uint32_t status = m_devdiagplugin->GetPreviousRebootInfo(rebootInfo, success);
+    
+    EXPECT_EQ(status, Core::ERROR_GENERAL);
+    EXPECT_EQ(success, false);
+    
+    TEST_LOG("Empty primary file - status: %u, success: %d", status, success);
+    
+    // Cleanup
+    remove("/opt/secure/reboot/previousreboot.info");
+    remove("/opt/secure/reboot/hardpower.info");
 }

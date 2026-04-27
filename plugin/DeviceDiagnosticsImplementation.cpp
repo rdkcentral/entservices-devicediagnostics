@@ -21,12 +21,13 @@
 #include <curl/curl.h>
 #include <time.h>
 #include <fstream>
+#include <sstream>
 
 #include "UtilsJsonRpc.h"
 
 #define MILESTONES_LOG_FILE                     "/opt/logs/rdk_milestones.log"
-#define PREVIOUS_REBOOT_INFO_FILE               "/opt/secure/reboot/previousreboot.info"
-#define HARD_POWER_RESET_FILE                   "/opt/secure/reboot/hardpower.info"
+#define PREVIOUS_REBOOT_INFO_FILE              "/opt/secure/reboot/previousreboot.info"
+#define HARD_POWER_INFO_FILE                   "/opt/secure/reboot/hardpower.info"
 
 
 /***
@@ -36,6 +37,14 @@
  * @return : <bool>; TRUE if operation success; else FALSE.
  */
 bool getFileContent(std::string fileName, std::list<std::string> & listOfStrs);
+
+/***
+ * @brief  : Used to read entire file contents into a string
+ * @param1[in] : Complete file name with path
+ * @param2[out] : Destination string buffer to be filled with file contents
+ * @return : <bool>; TRUE if operation success; else FALSE.
+ */
+bool getFileContent(std::string fileName, std::string& fileContent);
 
 namespace WPEFramework
 {
@@ -407,65 +416,88 @@ namespace WPEFramework
         Core::hresult DeviceDiagnosticsImplementation::GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success)
         {
             LOGINFO("");
+            
+            bool retAPIStatus = false;
+            string timestamp, source, reason, customReason, otherReason, lastHardPowerReset;
+            string rebootInfoContent;
+            string hardPowerInfo;
+            Core::hresult result = Core::ERROR_GENERAL;
+            
+            success = false;
+            if (!Core::File(string(PREVIOUS_REBOOT_INFO_FILE)).Exists()) {
+		       LOGERR("Failed to get previous reboot info, %s file does not exist", PREVIOUS_REBOOT_INFO_FILE);
+		       return result;
+	        }
 
-            std::ifstream rebootFile(PREVIOUS_REBOOT_INFO_FILE);
-            if (!rebootFile.is_open())
-            {
-                LOGERR("Failed to open %s", PREVIOUS_REBOOT_INFO_FILE);
-                success = false;
-                return Core::ERROR_GENERAL;
+	        if (!Core::File(string(HARD_POWER_INFO_FILE)).Exists()) {
+               LOGERR("Failed to get previous reboot info, %s file does not exist", HARD_POWER_INFO_FILE);
+               return result;
             }
 
-            std::string line;
-            while (std::getline(rebootFile, line))
-            {
-                size_t eq = line.find('=');
-                if (eq == std::string::npos)
-                    continue;
-
-                std::string key   = line.substr(0, eq);
-                std::string value = line.substr(eq + 1);
-
-                // Trim trailing whitespace/newline from value
-                value.erase(value.find_last_not_of(" \t\r\n") + 1);
-
-                if (key == "reboot_timestamp")
-                    rebootInfo.timestamp = value;
-                else if (key == "reboot_source")
-                    rebootInfo.source = value;
-                else if (key == "reboot_reason")
-                    rebootInfo.reason = value;
-                else if (key == "reboot_custom_reason")
-                    rebootInfo.customReason = value;
-                else if (key == "reboot_other_reason")
-                    rebootInfo.otherReason = value;
+            retAPIStatus = getFileContent(PREVIOUS_REBOOT_INFO_FILE, rebootInfoContent);
+            if (!retAPIStatus || rebootInfoContent.empty()) {
+                LOGERR("Failed to read reboot info file or file is empty");
+		        return result;
             }
-            rebootFile.close();
-
-            // Read lastHardPowerReset — absence is non-fatal
-            std::ifstream hardPowerFile(HARD_POWER_RESET_FILE);
-            if (hardPowerFile.is_open())
-            {
-                std::string hpLine;
-                if (std::getline(hardPowerFile, hpLine))
-                {
-                    hpLine.erase(hpLine.find_last_not_of(" \t\r\n") + 1);
-                    rebootInfo.lastHardPowerReset = hpLine;
-                }
-                hardPowerFile.close();
+			
+            JsonObject rebootInfoJson;
+            if (rebootInfoJson.FromString(rebootInfoContent)) {
+                timestamp = rebootInfoJson["timestamp"].String();
+                source = rebootInfoJson["source"].String();
+                reason = rebootInfoJson["reason"].String();
+                customReason = rebootInfoJson["customReason"].String();     
+                otherReason = rebootInfoJson["otherReason"].String();
+            } else {
+                LOGERR("Failed to parse reboot info JSON");
+                return result;
             }
-            else
-            {
-                LOGWARN("Hard power reset file not found: %s — returning empty string", HARD_POWER_RESET_FILE);
-                rebootInfo.lastHardPowerReset = "";
+			
+            bool hardPowerStatus = getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo);
+            if (!hardPowerStatus || hardPowerInfo.empty()) {
+                LOGERR("Failed to read hard power info file or file is empty");
+                return result;
             }
-
+            JsonObject hardPowerInfoJson;
+            if (hardPowerInfoJson.FromString(hardPowerInfo)) {
+                lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();
+                
+            } else {
+                LOGERR("Failed to parse hard power info JSON");
+                return result;
+            }
+			
+            rebootInfo.timestamp = std::move(timestamp);
+            rebootInfo.source = std::move(source);
+            rebootInfo.reason = std::move(reason);
+            rebootInfo.customReason = std::move(customReason);
+            rebootInfo.otherReason = std::move(otherReason);
+            rebootInfo.lastHardPowerReset = std::move(lastHardPowerReset);
+            
             success = true;
+                 
             return Core::ERROR_NONE;
         }
-
     } // namespace Plugin
 } // namespace WPEFramework
+
+/***
+ * @brief       : Used to read file contents into a string
+ * @param1[in]  : Complete file name with path
+ * @param2[out] : Destination string object filled with file contents
+ * @return      : <bool>; TRUE if operation success; else FALSE.
+ */
+bool getFileContent(std::string fileName, std::string& fileContent)
+{
+    std::ifstream inFile(fileName.c_str(), std::ios::in);
+    if (!inFile.is_open()) return false;
+
+    std::stringstream buffer;
+    buffer << inFile.rdbuf();
+    fileContent = buffer.str();
+    inFile.close();
+
+    return true;
+}
 
 /***
  * @brief   : Used to read file contents into a list

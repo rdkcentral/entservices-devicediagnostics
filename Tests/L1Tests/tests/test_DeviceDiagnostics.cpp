@@ -1,3 +1,6 @@
+#include <cstdio>
+
+
 /**
  * If not stated otherwise in this file or this component's LICENSE
  * file the following copyright and licenses apply:
@@ -19,6 +22,9 @@
 
 #include "gtest/gtest.h"
 #include <gmock/gmock.h>
+#include <fstream>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "DeviceDiagnostics.h"
 #include "ThunderPortability.h"
@@ -32,15 +38,28 @@
 using namespace WPEFramework;
 using ::testing::NiceMock;
 
+// Helper to assert remove success or file not found
+static void AssertRemove(const char* path) {
+    int rc = remove(path);
+    ASSERT_TRUE(rc == 0 || errno == ENOENT) << "Failed to remove file: " << path << ", errno: " << errno;
+}
+#include <cerrno>
+
+// Helper to assert mkdir success or EEXIST
+static void AssertMkdir(const char* path, mode_t mode) {
+    int rc = mkdir(path, mode);
+    ASSERT_TRUE(rc == 0 || errno == EEXIST) << "Failed to create directory: " << path << ", errno: " << errno;
+}
+
 class DeviceDiagnosticsTest : public ::testing::Test {
 protected:
     Core::ProxyType<Plugin::DeviceDiagnostics> deviceDiagnostic_;
+    Core::ProxyType<Plugin::DeviceDiagnosticsImplementation> deviceDiagnosticsImpl;
     Core::JSONRPC::Handler& handler_;
     DECL_CORE_JSONRPC_CONX connection;
     NiceMock<ServiceMock> service;
     NiceMock<COMLinkMock> comLinkMock;
     Core::ProxyType<WorkerPoolImplementation> workerPool;
-    Core::ProxyType<Plugin::DeviceDiagnosticsImplementation> DevDiagImpl;
     Exchange::IDeviceDiagnostics::INotification *DevDiagNotification = nullptr;
     string response;
     WrapsImplMock *p_wrapsImplMock   = nullptr;
@@ -51,7 +70,7 @@ protected:
         : deviceDiagnostic_(Core::ProxyType<Plugin::DeviceDiagnostics>::Create())
         , handler_(*deviceDiagnostic_)
         , INIT_CONX(1, 0)
-	        , workerPool(Core::ProxyType<WorkerPoolImplementation>::Create(
+        , workerPool(Core::ProxyType<WorkerPoolImplementation>::Create(
             2, Core::Thread::DefaultStackSize(), 16))
     {
         p_serviceMock = new NiceMock <ServiceMock>;
@@ -68,12 +87,29 @@ protected:
                 return Core::ERROR_NONE;;
             }));
 
+        // Mock service->COMLink() to return comLinkMock
+        ON_CALL(service, COMLink())
+            .WillByDefault(::testing::Invoke(
+                [this]() -> WPEFramework::PluginHost::IShell::ICOMLink* {
+                    return &comLinkMock;
+                }));
+
+        // Mock comLinkMock->Instantiate() to return DeviceDiagnosticsImplementation
+#ifdef USE_THUNDER_R4
         ON_CALL(comLinkMock, Instantiate(::testing::_, ::testing::_, ::testing::_))
-        .WillByDefault(::testing::Invoke(
-        [&](const RPC::Object& object, const uint32_t waitTime, uint32_t& connectionId) {
-            DevDiagImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
-            return &DevDiagImpl;
-            }));
+            .WillByDefault(::testing::Invoke(
+                [&](const RPC::Object& object, const uint32_t waitTime, uint32_t& connectionId) -> void* {
+                    deviceDiagnosticsImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
+                    return &deviceDiagnosticsImpl;
+                }));
+#else
+        ON_CALL(comLinkMock, Instantiate(::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_))
+            .WillByDefault(::testing::Invoke(
+                [&](const RPC::Object& object, const uint32_t waitTime, uint32_t& connectionId, const string& className, const string& callsign) -> void* {
+                    deviceDiagnosticsImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
+                    return deviceDiagnosticsImpl;
+                }));
+#endif
 
         Core::IWorkerPool::Assign(&(*workerPool));
         workerPool->Run();
@@ -163,83 +199,227 @@ TEST_F(DeviceDiagnosticsTest, getAVDecoderStatus)
     EXPECT_EQ(response, _T("{\"avDecoderStatus\":\"IDLE\"}"));
 }
 
-TEST_F(DeviceDiagnosticsTest, getPreviousRebootInfo_success)
+/************Test case Details **************************
+** Test 3.1: Successful reboot info retrieval with both files present and all fields populated
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_Success_AllFields)
 {
-    // Create fixture files for previousreboot.info and hardpower.info
-    const std::string rebootInfoPath = "/opt/secure/reboot/previousreboot.info";
-    const std::string hardPowerPath  = "/opt/secure/reboot/hardpower.info";
-
-    system("mkdir -p /opt/secure/reboot");
-
-    std::ofstream rebootFile(rebootInfoPath);
-    ASSERT_TRUE(rebootFile.is_open());
-    rebootFile << "reboot_timestamp=20200128083540\n"
-               << "reboot_source=SystemPlugin\n"
-               << "reboot_reason=FIRMWARE_FAILURE\n"
-               << "reboot_custom_reason=API Validation\n"
-               << "reboot_other_reason=API Validation\n";
-    rebootFile.close();
-
-    std::ofstream hardPowerFile(hardPowerPath);
-    ASSERT_TRUE(hardPowerFile.is_open());
-    hardPowerFile << "Tue Jan 28 08:22:22 UTC 2020\n";
+    // Create test directory
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
+    
+    // Create primary reboot info file with all fields
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"PowerKey\","
+                << "\"reason\":\"UserRequested\","
+                << "\"customReason\":\"Remote control power button\","
+                << "\"otherReason\":\"Scheduled maintenance\"}";
+    primaryFile.close();
+    
+    // Create hard power info file
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
     hardPowerFile.close();
+    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
+    EXPECT_EQ(result, Core::ERROR_NONE);
 
-    EXPECT_EQ(Core::ERROR_NONE, handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response));
-
-    JsonObject result;
-    EXPECT_TRUE(result.FromString(response));
-    EXPECT_TRUE(result["success"].Boolean());
-
-    JsonObject rebootInfo = result["rebootInfo"].Object();
-    EXPECT_EQ(rebootInfo["timestamp"].String(),            _T("20200128083540"));
-    EXPECT_EQ(rebootInfo["source"].String(),               _T("SystemPlugin"));
-    EXPECT_EQ(rebootInfo["reason"].String(),               _T("FIRMWARE_FAILURE"));
-    EXPECT_EQ(rebootInfo["customReason"].String(),         _T("API Validation"));
-    EXPECT_EQ(rebootInfo["otherReason"].String(),          _T("API Validation"));
-    EXPECT_EQ(rebootInfo["lastHardPowerReset"].String(),   _T("Tue Jan 28 08:22:22 UTC 2020"));
-
+    JsonObject respJson;
+    ASSERT_TRUE(respJson.FromString(response));
+    ASSERT_TRUE(respJson.HasLabel("rebootInfo"));
+    const JsonObject& rebootInfo = respJson["rebootInfo"].Object();
+    EXPECT_EQ(rebootInfo["timestamp"].String(), "2024-01-15T10:30:45Z");
+    EXPECT_EQ(rebootInfo["source"].String(), "PowerKey");
+    EXPECT_EQ(rebootInfo["reason"].String(), "UserRequested");
+    EXPECT_EQ(rebootInfo["customReason"].String(), "Remote control power button");
+    EXPECT_EQ(rebootInfo["otherReason"].String(), "Scheduled maintenance");
+    EXPECT_EQ(rebootInfo["lastHardPowerReset"].String(), "2024-01-10T08:15:30Z");
+    ASSERT_TRUE(respJson.HasLabel("success"));
+    EXPECT_TRUE(respJson["success"].Boolean());
+    
     // Cleanup
-    std::remove(rebootInfoPath.c_str());
-    std::remove(hardPowerPath.c_str());
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
 }
 
-TEST_F(DeviceDiagnosticsTest, getPreviousRebootInfo_fileNotFound)
+/************Test case Details **************************
+** Test 3.2: Primary file exists but hardpower.info missing scenario
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
 {
-    // Ensure file does not exist
-    std::remove("/opt/secure/reboot/previousreboot.info");
-
-    EXPECT_EQ(Core::ERROR_GENERAL, handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response));
+    // Create test directory
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
+    
+    // Create only primary reboot info file
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"PowerKey\","
+                << "\"reason\":\"UserRequested\","
+                << "\"customReason\":\"Remote control\","
+                << "\"otherReason\":\"None\"}";
+    primaryFile.close();
+    
+    // Make sure hardpower.info doesn't exist
+    AssertRemove("/opt/secure/reboot/hardpower.info");
+    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    
+    // Cleanup
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
 }
 
-TEST_F(DeviceDiagnosticsTest, getPreviousRebootInfo_hardpowerMissing)
+/************Test case Details **************************
+** Test 3.3: Primary reboot info file not found scenario (should return ERROR_GENERAL)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_PrimaryFileMissing)
 {
-    const std::string rebootInfoPath = "/opt/secure/reboot/previousreboot.info";
-    const std::string hardPowerPath  = "/opt/secure/reboot/hardpower.info";
+    // Ensure files don't exist
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
+    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+}
 
-    system("mkdir -p /opt/secure/reboot");
-
-    std::ofstream rebootFile(rebootInfoPath);
-    ASSERT_TRUE(rebootFile.is_open());
-    rebootFile << "reboot_timestamp=20200128083540\n"
-               << "reboot_source=SystemPlugin\n"
-               << "reboot_reason=FIRMWARE_FAILURE\n"
-               << "reboot_custom_reason=API Validation\n"
-               << "reboot_other_reason=API Validation\n";
-    rebootFile.close();
-
-    // Remove hardpower.info to simulate absence
-    std::remove(hardPowerPath.c_str());
-
-    EXPECT_EQ(Core::ERROR_NONE, handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response));
-
-    JsonObject result;
-    EXPECT_TRUE(result.FromString(response));
-    EXPECT_TRUE(result["success"].Boolean());
-
-    JsonObject rebootInfo = result["rebootInfo"].Object();
-    EXPECT_EQ(rebootInfo["lastHardPowerReset"].String(), _T(""));
-
+/************Test case Details **************************
+** Test 3.4: Invalid JSON in primaryreboot.info (should return ERROR_GENERAL)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
+{
+    // Create test directory
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
+    
+    // Create primary file with invalid JSON
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "This is not valid JSON content{broken";
+    primaryFile.close();
+    
+    // Create valid hard power file
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
+    hardPowerFile.close();
+    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    
     // Cleanup
-    std::remove(rebootInfoPath.c_str());
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
+}
+
+/************Test case Details **************************
+** Test 3.5: Invalid JSON in hardpower.info (should return ERROR_GENERAL based on current implementation)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
+{
+    // Create test directory
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
+    
+    // Create valid primary file
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"PowerKey\","
+                << "\"reason\":\"UserRequested\","
+                << "\"customReason\":\"Remote control\","
+                << "\"otherReason\":\"None\"}";
+    primaryFile.close();
+    
+    // Create hard power file with invalid JSON
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "Invalid JSON content here{";
+    hardPowerFile.close();
+    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    
+    // Cleanup
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
+}
+
+/************Test case Details **************************
+** Test 3.6: Missing fields in JSON files (empty strings returned)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
+{
+    // Create test directory
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
+    
+    // Create primary file with only some fields
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "{\"timestamp\":\"2024-01-15T10:30:45Z\","
+                << "\"source\":\"PowerKey\"}";
+    primaryFile.close();
+    
+    // Create hard power file without any fields
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{}";
+    hardPowerFile.close();
+    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
+    EXPECT_EQ(result, Core::ERROR_NONE);
+    JsonObject respJson;
+    ASSERT_TRUE(respJson.FromString(response));
+    ASSERT_TRUE(respJson.HasLabel("rebootInfo"));
+    const JsonObject& rebootInfo = respJson["rebootInfo"].Object();
+    EXPECT_EQ(rebootInfo["timestamp"].String(), "2024-01-15T10:30:45Z");
+    EXPECT_EQ(rebootInfo["source"].String(), "PowerKey");
+    // Missing JSON fields are returned as JSON null, which serializes as "\"null\""
+    EXPECT_TRUE(rebootInfo["reason"].String().empty() || rebootInfo["reason"].String() == "\"null\"");
+    EXPECT_TRUE(rebootInfo["customReason"].String().empty() || rebootInfo["customReason"].String() == "\"null\"");
+    EXPECT_TRUE(rebootInfo["otherReason"].String().empty() || rebootInfo["otherReason"].String() == "\"null\"");
+    EXPECT_TRUE(rebootInfo["lastHardPowerReset"].String().empty() || rebootInfo["lastHardPowerReset"].String() == "\"null\"");
+    ASSERT_TRUE(respJson.HasLabel("success"));
+    EXPECT_TRUE(respJson["success"].Boolean());
+    
+    // Cleanup
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
+}
+
+/************Test case Details **************************
+** Test 3.7: Empty primary file (should return ERROR_GENERAL)
+*******************************************************/
+TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_EmptyPrimaryFile)
+{
+    // Create test directory
+    AssertMkdir("/opt/secure", 0755);
+    AssertMkdir("/opt/secure/reboot", 0755);
+    
+    // Create empty primary file
+    std::ofstream primaryFile("/opt/secure/reboot/previousreboot.info");
+    primaryFile << "";
+    primaryFile.close();
+    
+    // Create valid hard power file
+    std::ofstream hardPowerFile("/opt/secure/reboot/hardpower.info");
+    hardPowerFile << "{\"lastHardPowerReset\":\"2024-01-10T08:15:30Z\"}";
+    hardPowerFile.close();
+    
+    // Test the API via JSON-RPC
+    response.clear();
+    Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    
+    // Cleanup
+    AssertRemove("/opt/secure/reboot/previousreboot.info");
+    AssertRemove("/opt/secure/reboot/hardpower.info");
 }
