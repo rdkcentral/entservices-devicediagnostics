@@ -26,7 +26,7 @@ The `DeviceDiagnostics` plugin is a Thunder framework plugin for RDK-based devic
 
 ## Description
 
-The `DeviceDiagnostics` plugin follows the Thunder **out-of-process (OOP)** split pattern. A lightweight plugin shell (`DeviceDiagnostics`) runs in-process with the Thunder framework and handles all JSON-RPC routing. The actual diagnostic work is performed by a separate out-of-process implementation (`DeviceDiagnosticsImplementation`) that communicates back to the shell via COM-RPC.
+The `DeviceDiagnostics` plugin follows the Thunder **in-process split** pattern. A lightweight plugin shell (`DeviceDiagnostics`) runs in-process with the Thunder framework and handles all JSON-RPC routing. The actual diagnostic work is performed by a separate implementation library (`DeviceDiagnosticsImplementation`) that is loaded into the same Thunder process and communicates with the shell via COM-RPC.
 
 The interface (`Exchange::IDeviceDiagnostics`) is defined in `IDeviceDiagnostics.h` with JSON tag `1.0.0`. Auto-generated JSON-RPC stubs (`Exchange::JDeviceDiagnostics`) are registered during plugin `Initialize` and unregistered during `Deinitialize`.
 
@@ -42,7 +42,7 @@ The implementation relies on:
 
 1. Stores the `service` reference and increments its refcount.
 2. Registers `_deviceDiagnosticsNotification` with the service shell (for remote connection lifecycle events).
-3. Instantiates `DeviceDiagnosticsImplementation` out-of-process via `service->Root<>()` with a 5-second timeout.
+3. Instantiates `DeviceDiagnosticsImplementation` in-process via `service->Root<>()` with a 5-second timeout (the implementation is loaded as a separate shared library within the same Thunder process).
 4. If instantiation succeeds:
    - Registers `_deviceDiagnosticsNotification` for `IDeviceDiagnostics::INotification` callbacks.
    - Registers auto-generated JSON-RPC stubs: `Exchange::JDeviceDiagnostics::Register(*this, _deviceDiagnostics)`.
@@ -55,12 +55,12 @@ The implementation relies on:
    - Calls `_deviceDiagnostics->Unregister(&_deviceDiagnosticsNotification)`.
    - Calls `Exchange::JDeviceDiagnostics::Unregister(*this)`.
    - Releases the `_deviceDiagnostics` interface (expects `Core::ERROR_DESTRUCTION_SUCCEEDED`).
-   - If running out-of-process: retrieves and terminates the remote connection.
+   - If a connection reference exists: retrieves and terminates it via `service->RemoteConnection(_connectionId)`.
 3. Releases the service reference.
 
-#### Out-of-Process Crash Handling
+#### Connection Deactivation Handling
 
-The `Notification` inner class implements `RPC::IRemoteConnection::INotification`. On `Deactivated()`, `DeviceDiagnostics::Deactivated()` is called to ensure resource cleanup when the out-of-process implementation crashes.
+The `Notification` inner class implements `RPC::IRemoteConnection::INotification`. On `Deactivated()`, `DeviceDiagnostics::Deactivated()` is called to ensure resource cleanup if the implementation is deactivated unexpectedly.
 
 ### Implementation Details
 
@@ -115,11 +115,11 @@ AVPollThread loop:
 
 ### Non-Functional Requirements
 
-- **REQ-DD-010:** The plugin shell (`DeviceDiagnostics`) MUST run in-process with Thunder; the implementation MUST run out-of-process.
+- **REQ-DD-010:** Both the plugin shell (`DeviceDiagnostics`) and the implementation (`DeviceDiagnosticsImplementation`) MUST run in-process within the same Thunder process; the implementation MUST be loaded as a separate shared library (`libWPEFrameworkDeviceDiagnosticsImplementation.so`).
 - **REQ-DD-011:** JSON-RPC stubs MUST be registered using auto-generated `Exchange::JDeviceDiagnostics` classes, not manual `Register()` calls.
 - **REQ-DD-012:** The plugin MUST implement `PluginHost::IPlugin` and `PluginHost::IDispatcher`.
 - **REQ-DD-013:** The plugin MUST use `SERVICE_REGISTRATION(DeviceDiagnostics, 1, 1, 2)` to register with Thunder.
-- **REQ-DD-014:** The plugin MUST handle out-of-process implementation crashes via `RPC::IRemoteConnection::INotification::Deactivated`.
+- **REQ-DD-014:** The plugin MUST handle implementation deactivation events via `RPC::IRemoteConnection::INotification::Deactivated`.
 
 ### Configuration Requirements
 
@@ -131,8 +131,8 @@ AVPollThread loop:
 | `autostart` | boolean | `false` | Plugin does not start automatically |
 | `startuporder` | string | `""` (configurable) | Startup ordering position |
 | `precondition` | array | `["Platform"]` | Thunder subsystem dependencies required before activation |
-| `root.mode` | string | configurable | Execution mode (`LOCAL` / `CONTAINER` / `DISTRIBUTED`) |
-| `root.locator` | string | `libWPEFrameworkDeviceDiagnosticsImplementation.so` | OOP implementation library |
+| `root.mode` | string | `LOCAL` | Execution mode (set to `LOCAL` for in-process execution within the Thunder process) |
+| `root.locator` | string | `libWPEFrameworkDeviceDiagnosticsImplementation.so` | In-process implementation library |
 
 ### Build Requirements
 
@@ -148,38 +148,71 @@ Both build targets require **C++11** (`CXX_STANDARD 11`).
 
 ## Architecture / Design
 
-The plugin follows the Thunder out-of-process plugin split architecture:
+The plugin follows the Thunder in-process plugin split architecture:
 
-```
-┌─────────────────────────────────────────────────────┐
-│                  Thunder Framework                  │
-│                                                     │
-│  ┌────────────────────────────────────────────┐     │
-│  │     DeviceDiagnostics (Plugin Shell)       │     │
-│  │     libWPEFrameworkDeviceDiagnostics.so    │     │
-│  │     ├─ PluginHost::IPlugin                 │     │
-│  │     ├─ PluginHost::IDispatcher             │     │
-│  │     └─ Exchange::IDeviceDiagnostics        │     │
-│  │        (aggregated via COM-RPC proxy)      │     │
-│  └────────────────────┬───────────────────────┘     │
-│                       │ COM-RPC (IPC)               │
-│  ┌────────────────────▼───────────────────────┐     │
-│  │  DeviceDiagnosticsImplementation (OOP)     │     │
-│  │  libWPEFrameworkDeviceDiagnosticsImpl.so   │     │
-│  │  ├─ Exchange::IDeviceDiagnostics           │     │
-│  │  ├─ GetConfiguration → libcurl → :10999   │     │
-│  │  ├─ GetMilestones → file I/O              │     │
-│  │  ├─ LogMilestone → rdk_logger_milestone   │     │
-│  │  └─ GetAVDecoderStatus → EssRMgr          │     │
-│  └────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Client(["JSON-RPC Client\nhttp://127.0.0.1:9998/jsonrpc"])
+
+    subgraph WPEProcess["WPEFramework / Thunder — Single In-Process"]
+        direction TB
+
+        subgraph ShellLib["libWPEFrameworkDeviceDiagnostics.so — Plugin Shell"]
+            Shell["DeviceDiagnostics\nPluginHost::IPlugin · PluginHost::JSONRPC"]
+            JStubs["Exchange::JDeviceDiagnostics\nauto-generated JSON-RPC stubs"]
+            Notif["Notification (inner class)\nIDeviceDiagnostics::INotification\nIRemoteConnection::INotification"]
+        end
+
+        subgraph ImplLib["libWPEFrameworkDeviceDiagnosticsImplementation.so — Implementation"]
+            Impl["DeviceDiagnosticsImplementation\nExchange::IDeviceDiagnostics"]
+            AVThread["AVPollThread\nbackground thread · polls every 30 s\n(ifdef ENABLE_ERM)"]
+            Job["Job : Core::IDispatch\nasync event work item"]
+        end
+
+        WorkerPool["Core::IWorkerPool\nasync dispatch"]
+        IShell["PluginHost::IShell\nThunder service bus"]
+    end
+
+    subgraph Ext["External Dependencies"]
+        CURL["libcurl · HTTP POST"]
+        ConfigDaemon["Device Config Daemon\nhttp://127.0.0.1:10999"]
+        ERM["essosrmgr\nEssRMgrGetAVState\n(ifdef ENABLE_ERM)"]
+        MilestoneFile["/opt/logs/rdk_milestones.log\nfilesystem"]
+        RDKLog["rdk_logger_milestone\n(ifdef RDK_LOG_MILESTONE)"]
+    end
+
+    %% ── Initialization control flow ──────────────────────────────────────────
+    Shell -->|"1 · Register(&Notification) on IShell"| IShell
+    Shell -->|"2 · Root&lt;&gt;() — in-process instantiation\n     loads ImplLib into Thunder process"| ImplLib
+    Shell -->|"3 · Register(&Notification)\n     for INotification callbacks"| Impl
+    Shell -->|"4 · JDeviceDiagnostics::Register()"| JStubs
+
+    %% ── JSON-RPC request / response ─────────────────────────────────────────
+    Client <-->|"JSON-RPC 2.0\nrequest / response"| Shell
+    Shell --> JStubs
+    JStubs -->|"dispatch method call via COM-RPC"| Impl
+
+    %% ── Implementation work ─────────────────────────────────────────────────
+    Impl -->|"GetConfiguration"| CURL
+    CURL -->|"HTTP POST"| ConfigDaemon
+    Impl -->|"GetMilestones\nline-by-line read"| MilestoneFile
+    Impl -->|"LogMilestone"| RDKLog
+    Impl -->|"GetAVDecoderStatus"| ERM
+
+    %% ── AV decoder polling & async event flow ───────────────────────────────
+    AVThread -->|"EssRMgrGetAVState() every 30 s"| ERM
+    AVThread -->|"state changed → create Job\n& submit to WorkerPool"| WorkerPool
+    WorkerPool -->|"Job::Dispatch()"| Impl
+    Impl -->|"INotification::\nOnAVDecoderStatusChanged()"| Notif
+    Notif -->|"JDeviceDiagnostics::Event::\nOnAVDecoderStatusChanged()"| Shell
+    Shell -->|"JSON-RPC event broadcast\nto subscribed clients"| Client
 ```
 
 **Key design decisions:**
-- The plugin shell (`DeviceDiagnostics`) runs in-process with Thunder and handles all JSON-RPC routing via auto-generated `Exchange::JDeviceDiagnostics` stubs.
-- The implementation (`DeviceDiagnosticsImplementation`) runs out-of-process, isolating faults from the Thunder daemon.
-- Notification delivery uses the COM-RPC `IDeviceDiagnostics::INotification` callback chain across process boundaries.
-- The `Notification` inner class implements both `Exchange::IDeviceDiagnostics::INotification` (for business events) and `RPC::IRemoteConnection::INotification` (for crash recovery).
+- The plugin shell (`DeviceDiagnostics`) and the implementation (`DeviceDiagnosticsImplementation`) both run within the same Thunder process; the implementation is loaded as a separate shared library (`libWPEFrameworkDeviceDiagnosticsImplementation.so`).
+- The plugin shell handles all JSON-RPC routing via auto-generated `Exchange::JDeviceDiagnostics` stubs; method calls are dispatched to the implementation via in-process COM-RPC.
+- Notification delivery uses the COM-RPC `IDeviceDiagnostics::INotification` callback chain within the same process.
+- The `Notification` inner class implements both `Exchange::IDeviceDiagnostics::INotification` (for business events) and `RPC::IRemoteConnection::INotification` (for deactivation handling).
 
 ---
 
@@ -393,7 +426,7 @@ Triggered when the most active AV decoder pipeline status changes.
 | `Register` duplicate | `Core::ERROR_NONE` | N/A |
 | `GetAVDecoderStatus` (no ERM) | `Core::ERROR_NONE` | N/A (returns `"IDLE"`) |
 | Plugin initialization failure | error string from `Initialize()` | N/A |
-| OOP process crash | `Deactivated()` triggers cleanup | N/A |
+| Implementation deactivated | `Deactivated()` triggers cleanup | N/A |
 
 ### External System Dependencies
 
@@ -412,7 +445,7 @@ Triggered when the most active AV decoder pipeline status changes.
 
 - **AV Decoder poll interval:** 30 seconds (`AVDECODERSTATUS_RETRY_INTERVAL`). Events are only emitted on state change, not every poll cycle.
 - **Configuration query curl timeout:** 30 seconds (`curlTimeoutInSeconds`). Callers should be prepared for up to 30-second latency on `getConfiguration`.
-- **Plugin initialization timeout:** 5 seconds for out-of-process `Root<>()` instantiation of `DeviceDiagnosticsImplementation`.
+- **Plugin initialization timeout:** 5 seconds for in-process `Root<>()` instantiation of `DeviceDiagnosticsImplementation`.
 - **Notification dispatch model:** Asynchronous via `Core::IWorkerPool` — event delivery does not block the poll thread.
 - **Thread model:** One dedicated background poll thread for AV decoder state; all other operations are synchronous.
 
@@ -424,7 +457,7 @@ Triggered when the most active AV decoder pipeline status changes.
 - **No authentication on `getConfiguration` backend:** The HTTP POST to port 10999 does not include any authentication headers. This is acceptable for a local-only daemon but should be reviewed if the daemon is ever exposed on a non-loopback interface.
 - **No input sanitization on `getConfiguration`:** Property name strings from callers are forwarded directly to the local daemon without allowlist validation. Malformed or oversized property names could affect the daemon.
 - **`logMilestone` accepts arbitrary strings:** Any non-empty string can be written to the milestone log. There is no length limit or character validation.
-- **Out-of-process isolation:** Running the implementation out-of-process (`DeviceDiagnosticsImplementation`) provides OS-level fault isolation from the Thunder daemon and other plugins.
+- **In-process execution:** The plugin shell and implementation both run within the same Thunder process. There is no OS-level process isolation between the shell and the implementation; fault isolation relies on Thunder's error handling mechanisms rather than process boundaries.
 - **No caller identity verification:** Thunder JSON-RPC does not enforce per-method access control for this plugin. Any client with access to the JSON-RPC socket can invoke all methods.
 
 ---
@@ -529,8 +562,12 @@ Triggered when the most active AV decoder pipeline status changes.
     - `Plugin::DeviceDiagnosticsImplementation::AVPollThread`
     - `Plugin::DeviceDiagnosticsImplementation::dispatchEvent`
     - `Plugin::DeviceDiagnosticsImplementation::Dispatch`
+    - `getFileContent` (free function — reads file lines into a `std::list<std::string>`)
+    - `writeCurlResponse` (static free function — curl write callback for accumulating HTTP response)
 - `plugin/Module.h`:
     - `MODULE_NAME` (`Plugin_DeviceDiagnostics`)
+- `plugin/Module.cpp`:
+    - `MODULE_NAME_DECLARATION(BUILD_REFERENCE)`
 - `plugin/CMakeLists.txt`:
     - Target `WPEFrameworkDeviceDiagnostics`
     - Target `WPEFrameworkDeviceDiagnosticsImplementation`
@@ -572,3 +609,4 @@ Triggered when the most active AV decoder pipeline status changes.
 ## Change History
 
 - [2026-04-27] - openspec-templater - Restructured to match spec template; added Requirements, Architecture/Design, External Interfaces, Performance, Security, Versioning & Compatibility, Conformance Testing & Validation, Covered Code, Open Queries, References, and Change History sections from original technical specification content.
+- [2026-04-27] - openspec-templater - Re-applied template: updated plugin execution model from out-of-process to in-process throughout spec; replaced ASCII architecture diagram with Mermaid flowchart; refreshed Covered Code section with free functions `getFileContent` and `writeCurlResponse` and `Module.cpp` declaration identified by codebase scan.

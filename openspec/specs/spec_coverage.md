@@ -1,28 +1,28 @@
 # Openspec Coverage Report — DeviceDiagnostics
 
-**Generated:** 2026-04-27  
+**Generated:** 2026-04-27 (rev 2)  
 **Repository:** `entservices-devicediagnostics`  
 **Spec directory:** `specs/`  
 **Skill:** `openspec-coverage`
 
 ---
 
-## Overall Score: 86.6 / 100
+## Overall Score: 87.9 / 100
 
 | Category | Weight | Raw Score | Weighted Points |
 |---|---|---|---|
-| Code to Spec Coverage | 40% | 95.3% | **38.1** |
+| Code to Spec Coverage | 40% | 98.5% | **39.4** |
 | Architecture HLA Specification | 10% | 100% | **10.0** |
 | External Interface Specification | 10% | 95% | **9.5** |
 | Security Specification | 10% | 65% | **6.5** |
 | Performance Specification | 10% | 70% | **7.0** |
 | Versioning & Compatibility | 10% | 80% | **8.0** |
 | Conformance Testing & Validation | 10% | 75% | **7.5** |
-| **TOTAL** | **100%** | | **86.6 / 100** |
+| **TOTAL** | **100%** | | **87.9 / 100** |
 
 ---
 
-## 1. Code to Spec Coverage — 38.1 / 40
+## 1. Code to Spec Coverage — 39.4 / 40
 
 ### 1.1 Method Inventory
 
@@ -34,14 +34,15 @@ The following table lists all coverable symbols identified across production sou
 | `plugin/DeviceDiagnostics.h` | 5 | 4 | 1 |
 | `plugin/DeviceDiagnostics.cpp` | 6 | 6 | 0 |
 | `plugin/DeviceDiagnosticsImplementation.h` | 2 | 2 | 0 |
-| `plugin/DeviceDiagnosticsImplementation.cpp` | 16 | 14 | 2 |
+| `plugin/DeviceDiagnosticsImplementation.cpp` | 16 | 16 | 0 |
 | `plugin/Module.h` | 1 | 1 | 0 |
+| `plugin/Module.cpp` | 1 | 1 | 0 |
 | `helpers/UtilsJsonRpc.h` | macros only | N/A | — |
 | `helpers/UtilsLogging.h` | macros only | N/A | — |
 | `helpers/PluginInterfaceBuilder.h` | macros only | N/A | — |
 | `Tests/L1Tests/tests/test_DeviceDiagnostics.cpp` | 1 fixture | 1 | 0 |
 | `Tests/L2Tests/tests/DeviceDiagnostics_L2Test.cpp` | 2 helpers | 2 | 0 |
-| **TOTAL** | **41** | **38** | **3** |
+| **TOTAL** | **42** | **41** | **1** |
 
 ### 1.2 Covered Symbols (via `## Covered Code` in spec)
 
@@ -78,7 +79,7 @@ The following 38 symbols are declared in `specs/DeviceDiagnostics_Spec.md`:
 - `Plugin::DeviceDiagnosticsImplementation`
 - `Plugin::DeviceDiagnosticsImplementation::Job`
 
-**`plugin/DeviceDiagnosticsImplementation.cpp` (14/16):**
+**`plugin/DeviceDiagnosticsImplementation.cpp` (16/16):**
 - `Plugin::DeviceDiagnosticsImplementation::DeviceDiagnosticsImplementation`
 - `Plugin::DeviceDiagnosticsImplementation::~DeviceDiagnosticsImplementation`
 - `Plugin::DeviceDiagnosticsImplementation::Register`
@@ -93,9 +94,14 @@ The following 38 symbols are declared in `specs/DeviceDiagnostics_Spec.md`:
 - `Plugin::DeviceDiagnosticsImplementation::AVPollThread`
 - `Plugin::DeviceDiagnosticsImplementation::dispatchEvent`
 - `Plugin::DeviceDiagnosticsImplementation::Dispatch`
+- `getFileContent` (free function)
+- `writeCurlResponse` (static free function)
 
 **`plugin/Module.h` (1):**
 - `MODULE_NAME`
+
+**`plugin/Module.cpp` (1):**
+- `MODULE_NAME_DECLARATION`
 
 **`Tests/L1Tests/tests/test_DeviceDiagnostics.cpp` (1):**
 - `DeviceDiagnosticsTest`
@@ -109,10 +115,11 @@ The following 38 symbols are declared in `specs/DeviceDiagnostics_Spec.md`:
 ### 1.3 Orphaned Symbols (not covered by any spec)
 
 | Symbol | File | Line | Reason Not Covered |
-|---|---|---|---|
-| `Plugin::DeviceDiagnostics::Notification::Activated` | `plugin/DeviceDiagnostics.h` | 59 | Empty `RPC::IRemoteConnection::INotification::Activated` override; not mentioned in spec |
-| `writeCurlResponse` | `plugin/DeviceDiagnosticsImplementation.cpp` | 53 | Static file-scope curl write callback; not listed in `## Covered Code` |
-| `getFileContent` | `plugin/DeviceDiagnosticsImplementation.cpp` | 413 | File-scope utility function for reading milestone log; not listed in `## Covered Code` |
+|---|---|---|
+---|
+| `Plugin::DeviceDiagnostics::Notification::Activated` | `plugin/DeviceDiagnostics.h` | 59 | Empty `RPC::IRemoteConnection::INotification::Activated` override; not listed in `## Covered Code` |
+
+> **Resolved since previous report:** `writeCurlResponse` (G-2) and `getFileContent` (G-3) were added to `## Covered Code` in the openspec-templater run on 2026-04-27. `MODULE_NAME_DECLARATION` in `plugin/Module.cpp` was also newly mapped.
 
 ### 1.4 `// Spec:` Inline Comment Coverage
 
@@ -145,11 +152,11 @@ No inline `// Spec:` traceability annotations are present. All coverage is deriv
 
 | Sub-criterion | Weight | Calculation | Points |
 |---|---|---|---|
-| Reference Coverage | 20% | 38/41 = 92.7% × 20 | **18.5** |
+| Reference Coverage | 20% | 41/42 = 97.6% × 20 | **19.5** |
 | Spec Existence | 10% | 1/1 = 100% × 10 | **10.0** |
 | Spec Completeness | 5% | 1/1 = 100% × 5 | **5.0** |
-| No Orphaned Code | 5% | 38/41 = 92.7% × 5 | **4.6** |
-| **Subtotal** | **40%** | | **38.1 / 40** |
+| No Orphaned Code | 5% | 41/42 = 97.6% × 5 | **4.9** |
+| **Subtotal** | **40%** | | **39.4 / 40** |
 
 ---
 
@@ -158,9 +165,9 @@ No inline `// Spec:` traceability annotations are present. All coverage is deriv
 | Sub-criterion | Weight | Score | Evidence |
 |---|---|---|---|
 | Presence of HLA Spec | 3% | **3/3** | `## Architecture / Design` section present in `DeviceDiagnostics_Spec.md` |
-| Clarity of Architecture Diagrams | 3% | **3/3** | ASCII box diagram shows Thunder framework, plugin shell, OOP impl, COM-RPC bridge with clear annotations |
-| Component/Module Mapping | 2% | **2/2** | All major components mapped: plugin shell, OOP implementation, `JDeviceDiagnostics` stubs, `EssRMgr`, `libcurl`, `rdk_logger_milestone` |
-| Traceability to Code | 2% | **2/2** | Library names (`libWPEFrameworkDeviceDiagnostics.so`), class names, interface filenames, and source files all cross-referenced |
+| Clarity of Architecture Diagrams | 3% | **3/3** | Mermaid `flowchart TB` diagram shows full init, JSON-RPC request/response, implementation method dispatch, AV poll thread, async event delivery — all labelled with interface and library names |
+| Component/Module Mapping | 2% | **2/2** | All major components mapped: plugin shell, implementation library, `JDeviceDiagnostics` stubs, `EssRMgr`, `libcurl`, `rdk_logger_milestone`, `WorkerPool`, `IShell` |
+| Traceability to Code | 2% | **2/2** | Library names (`libWPEFrameworkDeviceDiagnostics.so`, `libWPEFrameworkDeviceDiagnosticsImplementation.so`), class names, interface filenames, and source files all cross-referenced |
 
 ---
 
@@ -268,8 +275,8 @@ No inline `// Spec:` traceability annotations are present. All coverage is deriv
 | ID | Severity | Category | Gap Description | Recommended Action |
 |---|---|---|---|---|
 | G-1 | Medium | Code Coverage | `Notification::Activated` not in `## Covered Code` | Add to `Covered Code` section in `DeviceDiagnostics_Spec.md` |
-| G-2 | Medium | Code Coverage | `writeCurlResponse` not in `## Covered Code` | Add to `Covered Code` section in `DeviceDiagnostics_Spec.md` |
-| G-3 | Medium | Code Coverage | `getFileContent` not in `## Covered Code` | Add to `Covered Code` section in `DeviceDiagnostics_Spec.md` |
+| ~~G-2~~ | ~~Resolved~~ | ~~Code Coverage~~ | ~~`writeCurlResponse` not in `## Covered Code`~~ | ~~Resolved 2026-04-27~~ |
+| ~~G-3~~ | ~~Resolved~~ | ~~Code Coverage~~ | ~~`getFileContent` not in `## Covered Code`~~ | ~~Resolved 2026-04-27~~ |
 | G-4 | Medium | Code Coverage | No `// Spec: DeviceDiagnostics_Spec` inline comments in any source file | Add inline spec annotations to key methods in `.cpp`/`.h` files for bidirectional traceability |
 | G-5 | High | Security | No formal threat model (STRIDE or equivalent) | Add threat model section or sub-section under `## Security` |
 | G-6 | High | Security | Security observations not formalized as verifiable requirements | Add REQ-DD-SEC-xxx requirements with acceptance criteria |
@@ -302,7 +309,7 @@ No inline `// Spec:` traceability annotations are present. All coverage is deriv
 | `## Open Queries` present | ✅ |
 | `## References` present | ✅ |
 | `## Change History` present | ✅ |
-| All 3 orphaned symbols added to `## Covered Code` | ❌ (G-1, G-2, G-3) |
+| All 3 orphaned symbols added to `## Covered Code` | ⚠️ Partial — G-2 ✅, G-3 ✅ resolved; G-1 (`Notification::Activated`) still orphaned |
 | `// Spec:` inline comments in source code | ❌ (G-4) |
 | Security threat model present | ❌ (G-5) |
 | Formal security requirements (REQ-DD-SEC-xxx) | ❌ (G-6) |
@@ -316,11 +323,11 @@ No inline `// Spec:` traceability annotations are present. All coverage is deriv
 
 ## Improvement Roadmap
 
-Resolving the gaps below would increase the total score to approximately **97 / 100**:
+Resolving the remaining gaps below would increase the total score to approximately **97 / 100**:
 
 | Action | Points Gained |
 |---|---|
-| Add 3 orphaned symbols to `## Covered Code` + add `// Spec:` comments | +1.4 |
+| Add `Notification::Activated` to `## Covered Code` + add `// Spec:` comments | +0.5 |
 | Add formal threat model (STRIDE) + security requirements | +2.0 |
 | Add security test cases | +2.0 |
 | Add performance benchmark test + documented results | +3.0 |
@@ -334,3 +341,4 @@ Resolving the gaps below would increase the total score to approximately **97 / 
 ## Change History
 
 - [2026-04-27] - openspec-coverage - Initial compliance report generated for `DeviceDiagnostics_Spec.md`.
+- [2026-04-27] - openspec-coverage - Rev 2: Rescored after openspec-templater run resolved G-2 (`writeCurlResponse`) and G-3 (`getFileContent`), added `Module.cpp` symbol, and updated architecture diagram from ASCII to Mermaid. Score updated from 86.6 → 87.9.
