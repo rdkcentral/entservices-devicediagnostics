@@ -244,9 +244,10 @@ Defined in `IDeviceDiagnostics.h` (`Exchange::IDeviceDiagnostics`):
 | L2 integration test | [Tests/L2Tests/tests/DeviceDiagnostics_L2Test.cpp](../../../Tests/L2Tests/tests/DeviceDiagnostics_L2Test.cpp) | End-to-end plugin lifecycle |
 
 ### Gaps
-- No L1 tests for `getMilestones` or `logMilestone`
-- No test for `onAVDecoderStatusChanged` event emission
-- No test for `ENABLE_ERM` path (ERM-dependent decoder status transitions)
+- L1 tests: no coverage for `getMilestones` or `logMilestone` (covered at L2 only)
+- L1 tests: no coverage for `onAVDecoderStatusChanged` event emission (covered at L2 only)
+- No test for `ENABLE_ERM` compile path — all existing tests exercise the non-ERM (always-`IDLE`) path at L1; L2 tests cover `ACTIVE` and `PAUSED` states via COM-RPC mock, but no real ERM integration test exists
+- No negative-path test for `getConfiguration` HTTP failure (REQ-23)
 
 ---
 
@@ -286,6 +287,22 @@ Defined in `IDeviceDiagnostics.h` (`Exchange::IDeviceDiagnostics`):
     - `DeviceDiagnosticsTest::RegisterMethod`
     - `DeviceDiagnosticsTest::getConfiguration`
     - `DeviceDiagnosticsTest::getAVDecoderStatus`
+- Tests/L2Tests/tests/DeviceDiagnostics_L2Test.cpp:
+    - `DeviceDiagnostics_L2test`
+    - `DeviceDiagnostics_L2test::OnAVDecoderStatusChanged`
+    - `DeviceDiagnostics_L2test::WaitForRequestStatus`
+    - `DeviceDiagnostics_L2test::onAVDecoderStatusChanged`
+    - `LogMilestone_JSONRPC`
+    - `IDLE_GetAVDecoderStatus_JSONRPC`
+    - `ACTIVE_GetAVDecoderStatus_JSONRPC`
+    - `GetMilestones_JSONRPC`
+    - `GetConfiguration_JSONRPC`
+    - `LogMilestone_COMRPC`
+    - `IDLE_GetAVDecoderStatus_COMRPC`
+    - `ACTIVE_GetAVDecoderStatus_COMRPC`
+    - `PAUSED_GetAVDecoderStatus_COMRPC`
+    - `GetConfiguration_COMRPC`
+    - `GetMilestones_COMRPC`
 
 ---
 
@@ -313,3 +330,4 @@ Defined in `IDeviceDiagnostics.h` (`Exchange::IDeviceDiagnostics`):
 ## Change History
 
 - [2026-04-27] - openspec-explore - Initial spec generated from codebase exploration (IDeviceDiagnostics.h, DeviceDiagnosticsImplementation.cpp, ARCHITECTURE.md, DeviceDiagnostics.md).
+- [2026-04-27] - openspec-templater - Restructured to match spec template; expanded Covered Code with L2 test methods; corrected Conformance gaps based on full L2 test scan.
