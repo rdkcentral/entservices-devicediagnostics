@@ -25,6 +25,8 @@
 #include "UtilsJsonRpc.h"
 
 #define MILESTONES_LOG_FILE                     "/opt/logs/rdk_milestones.log"
+#define PREVIOUS_REBOOT_INFO_FILE               "/opt/secure/reboot/previousreboot.info"
+#define HARD_POWER_RESET_FILE                   "/opt/secure/reboot/hardpower.info"
 
 
 /***
@@ -401,6 +403,67 @@ namespace WPEFramework
             }
             return result;
         }
+
+        Core::hresult DeviceDiagnosticsImplementation::GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success)
+        {
+            LOGINFO("");
+
+            std::ifstream rebootFile(PREVIOUS_REBOOT_INFO_FILE);
+            if (!rebootFile.is_open())
+            {
+                LOGERR("Failed to open %s", PREVIOUS_REBOOT_INFO_FILE);
+                success = false;
+                return Core::ERROR_GENERAL;
+            }
+
+            std::string line;
+            while (std::getline(rebootFile, line))
+            {
+                size_t eq = line.find('=');
+                if (eq == std::string::npos)
+                    continue;
+
+                std::string key   = line.substr(0, eq);
+                std::string value = line.substr(eq + 1);
+
+                // Trim trailing whitespace/newline from value
+                value.erase(value.find_last_not_of(" \t\r\n") + 1);
+
+                if (key == "reboot_timestamp")
+                    rebootInfo.timestamp = value;
+                else if (key == "reboot_source")
+                    rebootInfo.source = value;
+                else if (key == "reboot_reason")
+                    rebootInfo.reason = value;
+                else if (key == "reboot_custom_reason")
+                    rebootInfo.customReason = value;
+                else if (key == "reboot_other_reason")
+                    rebootInfo.otherReason = value;
+            }
+            rebootFile.close();
+
+            // Read lastHardPowerReset — absence is non-fatal
+            std::ifstream hardPowerFile(HARD_POWER_RESET_FILE);
+            if (hardPowerFile.is_open())
+            {
+                std::string hpLine;
+                if (std::getline(hardPowerFile, hpLine))
+                {
+                    hpLine.erase(hpLine.find_last_not_of(" \t\r\n") + 1);
+                    rebootInfo.lastHardPowerReset = hpLine;
+                }
+                hardPowerFile.close();
+            }
+            else
+            {
+                LOGWARN("Hard power reset file not found: %s — returning empty string", HARD_POWER_RESET_FILE);
+                rebootInfo.lastHardPowerReset = "";
+            }
+
+            success = true;
+            return Core::ERROR_NONE;
+        }
+
     } // namespace Plugin
 } // namespace WPEFramework
 

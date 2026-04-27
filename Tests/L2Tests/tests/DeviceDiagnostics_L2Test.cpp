@@ -699,3 +699,110 @@ TEST_F(DeviceDiagnostics_L2test, GetMilestones_COMRPC)
     EXPECT_EQ(success, false);
     EXPECT_EQ(result, nullptr);
 }
+
+/************Test case Details **************************
+** 1. Create previousreboot.info and hardpower.info fixture files.
+** 2. Invoke getPreviousRebootInfo via JSON-RPC.
+** 3. Validate the rebootInfo object and success flag.
+*******************************************************/
+
+TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_JSONRPC)
+{
+    const std::string rebootInfoPath = "/opt/secure/reboot/previousreboot.info";
+    const std::string hardPowerPath  = "/opt/secure/reboot/hardpower.info";
+
+    // Create fixture files
+    system("mkdir -p /opt/secure/reboot");
+
+    std::ofstream rebootFile(rebootInfoPath);
+    ASSERT_TRUE(rebootFile.is_open()) << "Failed to create previousreboot.info fixture";
+    rebootFile << "reboot_timestamp=20200128083540\n"
+               << "reboot_source=SystemPlugin\n"
+               << "reboot_reason=FIRMWARE_FAILURE\n"
+               << "reboot_custom_reason=API Validation\n"
+               << "reboot_other_reason=API Validation\n";
+    rebootFile.close();
+
+    std::ofstream hardPowerFile(hardPowerPath);
+    ASSERT_TRUE(hardPowerFile.is_open()) << "Failed to create hardpower.info fixture";
+    hardPowerFile << "Tue Jan 28 08:22:22 UTC 2020\n";
+    hardPowerFile.close();
+
+    uint32_t status = Core::ERROR_GENERAL;
+    JsonObject params, result;
+
+    status = InvokeServiceMethod("org.rdk.DeviceDiagnostics.1", "getPreviousRebootInfo", params, result);
+    EXPECT_EQ(Core::ERROR_NONE, status);
+    EXPECT_TRUE(result["success"].Boolean());
+
+    JsonObject rebootInfo = result["rebootInfo"].Object();
+    EXPECT_EQ(rebootInfo["timestamp"].String(),          _T("20200128083540"));
+    EXPECT_EQ(rebootInfo["source"].String(),             _T("SystemPlugin"));
+    EXPECT_EQ(rebootInfo["reason"].String(),             _T("FIRMWARE_FAILURE"));
+    EXPECT_EQ(rebootInfo["customReason"].String(),       _T("API Validation"));
+    EXPECT_EQ(rebootInfo["otherReason"].String(),        _T("API Validation"));
+    EXPECT_EQ(rebootInfo["lastHardPowerReset"].String(), _T("Tue Jan 28 08:22:22 UTC 2020"));
+
+    TEST_LOG("GetPreviousRebootInfo_JSONRPC: result timestamp=%s source=%s reason=%s",
+        rebootInfo["timestamp"].String().c_str(),
+        rebootInfo["source"].String().c_str(),
+        rebootInfo["reason"].String().c_str());
+
+    // Cleanup
+    remove(rebootInfoPath.c_str());
+    remove(hardPowerPath.c_str());
+}
+
+/************Test case Details **************************
+** 1. Create previousreboot.info and hardpower.info fixture files.
+** 2. Invoke GetPreviousRebootInfo via COM-RPC directly.
+** 3. Validate the RebootInfo struct fields and success flag.
+*******************************************************/
+
+TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_COMRPC)
+{
+    const std::string rebootInfoPath = "/opt/secure/reboot/previousreboot.info";
+    const std::string hardPowerPath  = "/opt/secure/reboot/hardpower.info";
+
+    // Create fixture files
+    system("mkdir -p /opt/secure/reboot");
+
+    std::ofstream rebootFile(rebootInfoPath);
+    ASSERT_TRUE(rebootFile.is_open()) << "Failed to create previousreboot.info fixture";
+    rebootFile << "reboot_timestamp=20200128083540\n"
+               << "reboot_source=SystemPlugin\n"
+               << "reboot_reason=FIRMWARE_FAILURE\n"
+               << "reboot_custom_reason=API Validation\n"
+               << "reboot_other_reason=API Validation\n";
+    rebootFile.close();
+
+    std::ofstream hardPowerFile(hardPowerPath);
+    ASSERT_TRUE(hardPowerFile.is_open()) << "Failed to create hardpower.info fixture";
+    hardPowerFile << "Tue Jan 28 08:22:22 UTC 2020\n";
+    hardPowerFile.close();
+
+    ASSERT_TRUE(m_devdiagplugin != nullptr);
+
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+
+    uint32_t status = m_devdiagplugin->GetPreviousRebootInfo(rebootInfo, success);
+    EXPECT_EQ(Core::ERROR_NONE, status);
+    EXPECT_TRUE(success);
+
+    EXPECT_EQ(rebootInfo.timestamp,          _T("20200128083540"));
+    EXPECT_EQ(rebootInfo.source,             _T("SystemPlugin"));
+    EXPECT_EQ(rebootInfo.reason,             _T("FIRMWARE_FAILURE"));
+    EXPECT_EQ(rebootInfo.customReason,       _T("API Validation"));
+    EXPECT_EQ(rebootInfo.otherReason,        _T("API Validation"));
+    EXPECT_EQ(rebootInfo.lastHardPowerReset, _T("Tue Jan 28 08:22:22 UTC 2020"));
+
+    TEST_LOG("GetPreviousRebootInfo_COMRPC: timestamp=%s source=%s reason=%s",
+        rebootInfo.timestamp.c_str(),
+        rebootInfo.source.c_str(),
+        rebootInfo.reason.c_str());
+
+    // Cleanup
+    remove(rebootInfoPath.c_str());
+    remove(hardPowerPath.c_str());
+}

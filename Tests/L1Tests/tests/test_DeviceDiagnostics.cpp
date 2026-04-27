@@ -162,3 +162,84 @@ TEST_F(DeviceDiagnosticsTest, getAVDecoderStatus)
     EXPECT_EQ(Core::ERROR_NONE, handler_.Invoke(connection, _T("getAVDecoderStatus"), _T("{}"), response));
     EXPECT_EQ(response, _T("{\"avDecoderStatus\":\"IDLE\"}"));
 }
+
+TEST_F(DeviceDiagnosticsTest, getPreviousRebootInfo_success)
+{
+    // Create fixture files for previousreboot.info and hardpower.info
+    const std::string rebootInfoPath = "/opt/secure/reboot/previousreboot.info";
+    const std::string hardPowerPath  = "/opt/secure/reboot/hardpower.info";
+
+    system("mkdir -p /opt/secure/reboot");
+
+    std::ofstream rebootFile(rebootInfoPath);
+    ASSERT_TRUE(rebootFile.is_open());
+    rebootFile << "reboot_timestamp=20200128083540\n"
+               << "reboot_source=SystemPlugin\n"
+               << "reboot_reason=FIRMWARE_FAILURE\n"
+               << "reboot_custom_reason=API Validation\n"
+               << "reboot_other_reason=API Validation\n";
+    rebootFile.close();
+
+    std::ofstream hardPowerFile(hardPowerPath);
+    ASSERT_TRUE(hardPowerFile.is_open());
+    hardPowerFile << "Tue Jan 28 08:22:22 UTC 2020\n";
+    hardPowerFile.close();
+
+    EXPECT_EQ(Core::ERROR_NONE, handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response));
+
+    JsonObject result;
+    EXPECT_TRUE(result.FromString(response));
+    EXPECT_TRUE(result["success"].Boolean());
+
+    JsonObject rebootInfo = result["rebootInfo"].Object();
+    EXPECT_EQ(rebootInfo["timestamp"].String(),            _T("20200128083540"));
+    EXPECT_EQ(rebootInfo["source"].String(),               _T("SystemPlugin"));
+    EXPECT_EQ(rebootInfo["reason"].String(),               _T("FIRMWARE_FAILURE"));
+    EXPECT_EQ(rebootInfo["customReason"].String(),         _T("API Validation"));
+    EXPECT_EQ(rebootInfo["otherReason"].String(),          _T("API Validation"));
+    EXPECT_EQ(rebootInfo["lastHardPowerReset"].String(),   _T("Tue Jan 28 08:22:22 UTC 2020"));
+
+    // Cleanup
+    std::remove(rebootInfoPath.c_str());
+    std::remove(hardPowerPath.c_str());
+}
+
+TEST_F(DeviceDiagnosticsTest, getPreviousRebootInfo_fileNotFound)
+{
+    // Ensure file does not exist
+    std::remove("/opt/secure/reboot/previousreboot.info");
+
+    EXPECT_EQ(Core::ERROR_GENERAL, handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response));
+}
+
+TEST_F(DeviceDiagnosticsTest, getPreviousRebootInfo_hardpowerMissing)
+{
+    const std::string rebootInfoPath = "/opt/secure/reboot/previousreboot.info";
+    const std::string hardPowerPath  = "/opt/secure/reboot/hardpower.info";
+
+    system("mkdir -p /opt/secure/reboot");
+
+    std::ofstream rebootFile(rebootInfoPath);
+    ASSERT_TRUE(rebootFile.is_open());
+    rebootFile << "reboot_timestamp=20200128083540\n"
+               << "reboot_source=SystemPlugin\n"
+               << "reboot_reason=FIRMWARE_FAILURE\n"
+               << "reboot_custom_reason=API Validation\n"
+               << "reboot_other_reason=API Validation\n";
+    rebootFile.close();
+
+    // Remove hardpower.info to simulate absence
+    std::remove(hardPowerPath.c_str());
+
+    EXPECT_EQ(Core::ERROR_NONE, handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response));
+
+    JsonObject result;
+    EXPECT_TRUE(result.FromString(response));
+    EXPECT_TRUE(result["success"].Boolean());
+
+    JsonObject rebootInfo = result["rebootInfo"].Object();
+    EXPECT_EQ(rebootInfo["lastHardPowerReset"].String(), _T(""));
+
+    // Cleanup
+    std::remove(rebootInfoPath.c_str());
+}
