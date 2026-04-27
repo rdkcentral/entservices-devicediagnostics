@@ -256,30 +256,44 @@ Defined in `IDeviceDiagnostics.h` (`Exchange::IDeviceDiagnostics`):
 - plugin/DeviceDiagnostics.cpp:
     - `DeviceDiagnostics::Initialize`
     - `DeviceDiagnostics::Deinitialize`
-    - `DeviceDiagnostics::Notification::OnAVDecoderStatusChanged`
+    - `DeviceDiagnostics::Information`
     - `DeviceDiagnostics::Deactivated`
+    - `DeviceDiagnostics::Notification::Activated`
+    - `DeviceDiagnostics::Notification::Deactivated`
+    - `DeviceDiagnostics::Notification::OnAVDecoderStatusChanged`
 - plugin/DeviceDiagnostics.h:
     - `DeviceDiagnostics`
     - `DeviceDiagnostics::Notification`
 - plugin/DeviceDiagnosticsImplementation.cpp:
+    - `DeviceDiagnosticsImplementation::DeviceDiagnosticsImplementation` _(constructor)_
+    - `DeviceDiagnosticsImplementation::~DeviceDiagnosticsImplementation` _(destructor)_
+    - `DeviceDiagnosticsImplementation::Register`
+    - `DeviceDiagnosticsImplementation::Unregister`
+    - `DeviceDiagnosticsImplementation::dispatchEvent`
+    - `DeviceDiagnosticsImplementation::Dispatch`
+    - `DeviceDiagnosticsImplementation::getMostActiveDecoderStatus`
+    - `DeviceDiagnosticsImplementation::AVPollThread` _(ENABLE_ERM only)_
+    - `DeviceDiagnosticsImplementation::onDecoderStatusChange`
     - `DeviceDiagnosticsImplementation::GetConfiguration`
     - `DeviceDiagnosticsImplementation::GetMilestones`
     - `DeviceDiagnosticsImplementation::LogMilestone`
     - `DeviceDiagnosticsImplementation::GetAVDecoderStatus`
-    - `DeviceDiagnosticsImplementation::Register`
-    - `DeviceDiagnosticsImplementation::Unregister`
     - `DeviceDiagnosticsImplementation::getConfig`
-    - `DeviceDiagnosticsImplementation::getMostActiveDecoderStatus`
-    - `DeviceDiagnosticsImplementation::onDecoderStatusChange`
-    - `DeviceDiagnosticsImplementation::dispatchEvent`
-    - `DeviceDiagnosticsImplementation::Dispatch`
-    - `DeviceDiagnosticsImplementation::AVPollThread` _(ENABLE_ERM only)_
+    - `getFileContent` _(file-scope helper)_
 - plugin/DeviceDiagnosticsImplementation.h:
     - `DeviceDiagnosticsImplementation`
     - `DeviceDiagnosticsImplementation::Job`
+    - `DeviceDiagnosticsImplementation::Job::Dispatch`
 - IDeviceDiagnostics.h:
     - `Exchange::IDeviceDiagnostics`
     - `Exchange::IDeviceDiagnostics::INotification`
+    - `Exchange::IDeviceDiagnostics::INotification::OnAVDecoderStatusChanged`
+    - `Exchange::IDeviceDiagnostics::Register`
+    - `Exchange::IDeviceDiagnostics::Unregister`
+    - `Exchange::IDeviceDiagnostics::GetConfiguration`
+    - `Exchange::IDeviceDiagnostics::GetMilestones`
+    - `Exchange::IDeviceDiagnostics::LogMilestone`
+    - `Exchange::IDeviceDiagnostics::GetAVDecoderStatus`
     - `Exchange::IDeviceDiagnostics::ParamList`
     - `Exchange::IDeviceDiagnostics::AvDecoderStatusResult`
 - Tests/L1Tests/tests/test_DeviceDiagnostics.cpp:
@@ -292,17 +306,17 @@ Defined in `IDeviceDiagnostics.h` (`Exchange::IDeviceDiagnostics`):
     - `DeviceDiagnostics_L2test::OnAVDecoderStatusChanged`
     - `DeviceDiagnostics_L2test::WaitForRequestStatus`
     - `DeviceDiagnostics_L2test::onAVDecoderStatusChanged`
-    - `LogMilestone_JSONRPC`
-    - `IDLE_GetAVDecoderStatus_JSONRPC`
-    - `ACTIVE_GetAVDecoderStatus_JSONRPC`
-    - `GetMilestones_JSONRPC`
-    - `GetConfiguration_JSONRPC`
-    - `LogMilestone_COMRPC`
-    - `IDLE_GetAVDecoderStatus_COMRPC`
-    - `ACTIVE_GetAVDecoderStatus_COMRPC`
-    - `PAUSED_GetAVDecoderStatus_COMRPC`
-    - `GetConfiguration_COMRPC`
-    - `GetMilestones_COMRPC`
+    - `DeviceDiagnostics_L2test::LogMilestone_JSONRPC`
+    - `DeviceDiagnostics_L2test::IDLE_GetAVDecoderStatus_JSONRPC`
+    - `DeviceDiagnostics_L2test::ACTIVE_GetAVDecoderStatus_JSONRPC`
+    - `DeviceDiagnostics_L2test::GetMilestones_JSONRPC`
+    - `DeviceDiagnostics_L2test::GetConfiguration_JSONRPC`
+    - `DeviceDiagnostics_L2test::LogMilestone_COMRPC`
+    - `DeviceDiagnostics_L2test::IDLE_GetAVDecoderStatus_COMRPC`
+    - `DeviceDiagnostics_L2test::ACTIVE_GetAVDecoderStatus_COMRPC`
+    - `DeviceDiagnostics_L2test::PAUSED_GetAVDecoderStatus_COMRPC`
+    - `DeviceDiagnostics_L2test::GetConfiguration_COMRPC`
+    - `DeviceDiagnostics_L2test::GetMilestones_COMRPC`
 
 ---
 
@@ -331,3 +345,4 @@ Defined in `IDeviceDiagnostics.h` (`Exchange::IDeviceDiagnostics`):
 
 - [2026-04-27] - openspec-explore - Initial spec generated from codebase exploration (IDeviceDiagnostics.h, DeviceDiagnosticsImplementation.cpp, ARCHITECTURE.md, DeviceDiagnostics.md).
 - [2026-04-27] - openspec-templater - Restructured to match spec template; expanded Covered Code with L2 test methods; corrected Conformance gaps based on full L2 test scan.
+- [2026-04-27] - openspec-templater - Regenerated Covered Code from full codebase scan; added missing methods (Information, constructors/destructor, getFileContent, Job::Dispatch, Notification::Activated/Deactivated, IDeviceDiagnostics interface methods).
