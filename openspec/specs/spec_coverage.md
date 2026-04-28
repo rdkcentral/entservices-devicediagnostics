@@ -1,6 +1,6 @@
 # OpenSpec Coverage Report — entservices-devicediagnostics
 
-**Generated:** 2026-04-28  
+**Generated:** 2026-04-28 (v2 — updated after templater pass)
 **Skill:** openspec-coverage  
 **Spec scanned:** `openspec/specs/device_diagnostics_spec.md`  
 **`// Spec:` comment signals found:** None
@@ -11,11 +11,12 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│            OPENSPEC COMPLIANCE SCORE:  79 / 100             │
+│            OPENSPEC COMPLIANCE SCORE:  83 / 100             │
+│            (↑ +4 from previous run: 79 → 83)                │
 ├──────────────────────────────────────────┬────────┬─────────┤
 │ Category                                 │ Score  │   Max   │
 ├──────────────────────────────────────────┼────────┼─────────┤
-│ Code to Spec Coverage                    │  36    │   40    │
+│ Code to Spec Coverage                    │  40    │   40    │
 │ Architecture HLA Specification           │  10    │   10    │
 │ External Interface Specification         │   9    │   10    │
 │ Security Specification                   │   7    │   10    │
@@ -23,35 +24,29 @@
 │ Conformance Testing & Validation         │   6    │   10    │
 │ Performance Specification                │   5    │   10    │
 ├──────────────────────────────────────────┼────────┼─────────┤
-│ TOTAL                                    │  79    │  100    │
+│ TOTAL                                    │  83    │  100    │
 └──────────────────────────────────────────┴────────┴─────────┘
 ```
 
 ---
 
-## 1. Code to Spec Coverage — 36 / 40
+## 1. Code to Spec Coverage — 40 / 40 ✅
 
 ### Method Inventory
 
 | File | Total Methods | Covered in Spec | Orphaned |
 |---|---|---|---|
-| `plugin/DeviceDiagnostics.cpp` | 6 | 4 | 2 |
-| `plugin/DeviceDiagnosticsImplementation.cpp` | 15 | 12 | 3 |
-| **Total** | **21** | **16** | **5** |
+| `plugin/DeviceDiagnostics.cpp` | 6 | 6 | 0 |
+| `plugin/DeviceDiagnosticsImplementation.cpp` | 15 | 15 | 0 |
+| **Total** | **21** | **21** | **0** |
 
-**Coverage rate: 76% (16/21)**
+**Coverage rate: 100% (21/21)**
 
-> `// Spec:` comment supplementary signal: 0 methods tagged. No boost applied.
+> `// Spec:` comment supplementary signal: 0 methods tagged. No boost needed — primary coverage is already 100%.
 
-### Orphaned Methods (not listed in any `## Covered Code` section)
+### Orphaned Methods
 
-| Method | File | Priority |
-|---|---|---|
-| `DeviceDiagnostics::DeviceDiagnostics` | `plugin/DeviceDiagnostics.cpp` | Low (constructor) |
-| `DeviceDiagnostics::~DeviceDiagnostics` | `plugin/DeviceDiagnostics.cpp` | Low (destructor) |
-| `DeviceDiagnosticsImplementation::DeviceDiagnosticsImplementation` | `plugin/DeviceDiagnosticsImplementation.cpp` | Low (constructor) |
-| `DeviceDiagnosticsImplementation::~DeviceDiagnosticsImplementation` | `plugin/DeviceDiagnosticsImplementation.cpp` | Low (destructor) |
-| `DeviceDiagnosticsImplementation::getMostActiveDecoderStatus` | `plugin/DeviceDiagnosticsImplementation.cpp` | Medium (private helper, ERM-guarded) |
+_None — all code methods are covered by `openspec/specs/device_diagnostics_spec.md`._
 
 ### Spec Files Status
 
@@ -63,10 +58,10 @@
 
 | Sub-criterion | Score | Max | Notes |
 |---|---|---|---|
-| Reference Coverage | 17 | 20 | 76% of methods covered (16/21); no `// Spec:` comments present |
+| Reference Coverage | 20 | 20 | 100% of methods covered (21/21) ✅ |
 | Spec Existence | 10 | 10 | `device_diagnostics_spec.md` exists ✅ |
 | Spec Completeness | 5 | 5 | All required sections present (Overview, Description, Requirements) ✅ |
-| No Orphaned Code | 4 | 5 | 5 uncovered methods (all boilerplate/private helpers) |
+| No Orphaned Code | 5 | 5 | 0 orphaned methods ✅ |
 
 ---
 
@@ -167,19 +162,18 @@
 
 | Pri | Action | Category | Estimated Score Gain |
 |---|---|---|---|
-| 1 | Add constructors, destructors, and `getMostActiveDecoderStatus` to `## Covered Code` | Code Coverage | +1 |
-| 2 | Embed JSON-RPC request/response examples in `## External Interfaces` section | External Interface | +1 |
-| 3 | Add L1 test: `LogMilestone` with empty marker | Conformance Testing | +0.5 |
-| 4 | Add L1 test: `GetMilestones` when log file is missing | Conformance Testing | +0.5 |
-| 5 | Add test run instructions (how to build/run L1, L2) | Conformance Testing | +1 |
-| 6 | Define semver semantics (MAJOR/MINOR/PATCH policy) | Versioning | +1 |
-| 7 | Document backward compatibility policy and migration guidance | Versioning | +2 |
-| 8 | Add formal threat model (STRIDE table) | Security | +1 |
-| 9 | Add security test for `LogMilestone` marker fuzzing | Security | +1 |
-| 10 | Convert performance observations to formal acceptance criteria | Performance | +1 |
-| 11 | Add at least one performance test or profiling result | Performance | +2 |
+| 1 | Embed JSON-RPC request/response examples in `## External Interfaces` section | External Interface | +1 |
+| 2 | Add L1 test: `LogMilestone` with empty marker | Conformance Testing | +0.5 |
+| 3 | Add L1 test: `GetMilestones` when log file is missing | Conformance Testing | +0.5 |
+| 4 | Add test run instructions (how to build/run L1, L2) | Conformance Testing | +1 |
+| 5 | Define semver semantics (MAJOR/MINOR/PATCH policy) | Versioning | +1 |
+| 6 | Document backward compatibility policy and migration guidance | Versioning | +2 |
+| 7 | Add formal threat model (STRIDE table) | Security | +1 |
+| 8 | Add security test for `LogMilestone` marker fuzzing | Security | +1 |
+| 9 | Convert performance observations to formal acceptance criteria | Performance | +1 |
+| 10 | Add at least one performance test or profiling result | Performance | +2 |
 
-**Projected score if all actions addressed: ~92 / 100**
+**Projected score if all actions addressed: ~94 / 100**
 
 ---
 
@@ -195,21 +189,21 @@
 
 ```
 plugin/DeviceDiagnostics.cpp
-  ├── DeviceDiagnostics()               ← ORPHANED
-  ├── ~DeviceDiagnostics()              ← ORPHANED
+  ├── DeviceDiagnostics()               ← covered: device_diagnostics_spec
+  ├── ~DeviceDiagnostics()              ← covered: device_diagnostics_spec
   ├── Initialize()                      ← covered: device_diagnostics_spec
   ├── Deinitialize()                    ← covered: device_diagnostics_spec
   ├── Information()                     ← covered: device_diagnostics_spec
   └── Deactivated()                     ← covered: device_diagnostics_spec
 
 plugin/DeviceDiagnosticsImplementation.cpp
-  ├── DeviceDiagnosticsImplementation() ← ORPHANED
-  ├── ~DeviceDiagnosticsImplementation()← ORPHANED
+  ├── DeviceDiagnosticsImplementation() ← covered: device_diagnostics_spec
+  ├── ~DeviceDiagnosticsImplementation()← covered: device_diagnostics_spec
   ├── Register()                        ← covered: device_diagnostics_spec
   ├── Unregister()                      ← covered: device_diagnostics_spec
   ├── dispatchEvent()                   ← covered: device_diagnostics_spec
   ├── Dispatch()                        ← covered: device_diagnostics_spec
-  ├── getMostActiveDecoderStatus()      ← ORPHANED
+  ├── getMostActiveDecoderStatus()      ← covered: device_diagnostics_spec
   ├── AVPollThread()                    ← covered: device_diagnostics_spec
   ├── onDecoderStatusChange()           ← covered: device_diagnostics_spec
   ├── GetConfiguration()                ← covered: device_diagnostics_spec
@@ -220,6 +214,8 @@ plugin/DeviceDiagnosticsImplementation.cpp
   └── getFileContent()                  ← covered: device_diagnostics_spec
 ```
 
+Orphaned methods: **none**
+
 ---
 
-*Generated by openspec-coverage skill — 2026-04-28*
+*Generated by openspec-coverage skill — 2026-04-28 (v2)*
