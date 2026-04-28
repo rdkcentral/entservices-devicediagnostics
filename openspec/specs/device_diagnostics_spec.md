@@ -6,7 +6,6 @@ This specification covers all implemented capabilities of the `DeviceDiagnostics
 
 Scope: `GetConfiguration`, `GetMilestones`, `LogMilestone`, `GetAVDecoderStatus`, and the `onAVDecoderStatusChanged` event notification.
 
-`GetPreviousRebootInfo` (declared in `IDeviceDiagnostics.h`) is **out of scope** for this spec — it is not yet implemented.
 
 ---
 
@@ -235,6 +234,8 @@ Key scenarios to validate:
 ## Covered Code
 
 - `plugin/DeviceDiagnostics.cpp`:
+    - `DeviceDiagnostics::DeviceDiagnostics`
+    - `DeviceDiagnostics::~DeviceDiagnostics`
     - `DeviceDiagnostics::Initialize`
     - `DeviceDiagnostics::Deinitialize`
     - `DeviceDiagnostics::Deactivated`
@@ -245,6 +246,9 @@ Key scenarios to validate:
     - `DeviceDiagnostics::Notification::OnAVDecoderStatusChanged`
     - `DeviceDiagnostics::Notification::Deactivated`
 - `plugin/DeviceDiagnosticsImplementation.cpp`:
+    - `DeviceDiagnosticsImplementation::DeviceDiagnosticsImplementation`
+    - `DeviceDiagnosticsImplementation::~DeviceDiagnosticsImplementation`
+    - `DeviceDiagnosticsImplementation::getMostActiveDecoderStatus`
     - `DeviceDiagnosticsImplementation::GetConfiguration`
     - `DeviceDiagnosticsImplementation::GetMilestones`
     - `DeviceDiagnosticsImplementation::LogMilestone`
@@ -295,7 +299,6 @@ Key scenarios to validate:
 
 ## Open Queries
 
-- **`GetPreviousRebootInfo` is not implemented**: `IDeviceDiagnostics.h` declares `GetPreviousRebootInfo()` and the `RebootInfo` struct (with `timestamp`, `source`, `reason`, `customReason`, `otherReason`, `lastHardPowerReset`). No implementation exists in `DeviceDiagnosticsImplementation.cpp`. When is this planned? What data source will supply reboot info?
 - **Configuration backend documentation**: The `GetConfiguration` implementation POSTs to `http://127.0.0.1:10999`. The identity of this service (TR181 agent, RFC, custom daemon?) is undocumented. A reference to that service's own spec or documentation would help.
 - **`LogMilestone` marker length limit**: No maximum length is defined or enforced. Should there be a cap to prevent log bloat or buffer issues in the underlying `logMilestone()` function?
 - **AV decoder polling latency**: 30-second polling means up to 30 seconds delay between a state change and the event being fired. Is this acceptable for all use cases? Is a configurable interval desirable?
@@ -319,3 +322,4 @@ Key scenarios to validate:
 - 2026-04-28 - openspec-explore - Initial spec generated from codebase exploration of `plugin/` and `IDeviceDiagnostics.h`.
 - 2026-04-28 - openspec-templater - Restructured to match spec template.
 - 2026-04-28 - openspec-explore - Corrected plugin topology to in-process; updated References to GitHub URLs.
+- 2026-04-28 - openspec-templater - Added missing constructor, destructor, and private helper methods to Covered Code; all template sections verified present and in correct order.
