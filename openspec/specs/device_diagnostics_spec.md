@@ -71,7 +71,7 @@ The plugin is designed to run as an out-of-process Thunder plugin. If the implem
 
 ---
 
-## Architecture / Design
+## Architecture / Design (if applicable)
 
 ### Plugin Host ↔ Implementation Split
 
@@ -146,7 +146,7 @@ AVPollThread                         DeviceDiagnostics (plugin host)
 
 ---
 
-## External Interfaces
+## External Interfaces (if applicable)
 
 ### COM-RPC Interface
 
@@ -190,7 +190,7 @@ Callsign: `org.rdk.DeviceDiagnostics`
 
 ---
 
-## Performance
+## Performance (if applicable)
 
 - **AV decoder status polling interval**: 30 seconds (`AVDECODERSTATUS_RETRY_INTERVAL`). This means event delivery for state changes may lag by up to 30 seconds.
 - **GetConfiguration timeout**: 30 seconds (`curlTimeoutInSeconds`). Callers of `getConfiguration` may block for up to 30 seconds if the backend is slow or unavailable.
@@ -198,7 +198,7 @@ Callsign: `org.rdk.DeviceDiagnostics`
 
 ---
 
-## Security
+## Security (if applicable)
 
 - **`LogMilestone` marker validation**: The implementation rejects empty markers but applies no maximum length or character sanitization before passing the marker to the underlying log function. A maximum marker length SHOULD be defined and enforced.
 - **`GetConfiguration` HTTP endpoint**: The backend is a loopback address (`127.0.0.1`), so external SSRF is not applicable. However, the endpoint is hardcoded; if the port is ever changed or the service is moved, this would require a code change.
@@ -206,7 +206,7 @@ Callsign: `org.rdk.DeviceDiagnostics`
 
 ---
 
-## Versioning & Compatibility
+## Versioning & Compatibility (if applicable)
 
 - Current plugin version: `1.1.2` (Major=1, Minor=1, Patch=2).
 - Interface version declared in `IDeviceDiagnostics.h`: `@json 1.0.0`.
@@ -215,7 +215,7 @@ Callsign: `org.rdk.DeviceDiagnostics`
 
 ---
 
-## Conformance Testing & Validation
+## Conformance Testing & Validation (if applicable)
 
 - **L1 Tests** (unit/mock): [Tests/L1Tests/tests/test_DeviceDiagnostics.cpp](../../Tests/L1Tests/tests/test_DeviceDiagnostics.cpp)
 - **L2 Tests** (integration): [Tests/L2Tests/tests/DeviceDiagnostics_L2Test.cpp](../../Tests/L2Tests/tests/DeviceDiagnostics_L2Test.cpp)
@@ -258,12 +258,36 @@ Key scenarios to validate:
 - `plugin/DeviceDiagnosticsImplementation.h`:
     - `DeviceDiagnosticsImplementation`
     - `DeviceDiagnosticsImplementation::Job`
+- `plugin/Module.cpp`:
+    - `MODULE_NAME_DECLARATION`
+- `plugin/Module.h`:
+    - `MODULE_NAME` (Plugin_DeviceDiagnostics)
 - `IDeviceDiagnostics.h`:
     - `Exchange::IDeviceDiagnostics`
     - `Exchange::IDeviceDiagnostics::INotification`
     - `Exchange::IDeviceDiagnostics::ParamList`
     - `Exchange::IDeviceDiagnostics::AvDecoderStatusResult`
     - `Exchange::IDeviceDiagnostics::RebootInfo` _(declared; not yet implemented)_
+- `Tests/L1Tests/tests/test_DeviceDiagnostics.cpp`:
+    - `DeviceDiagnosticsTest` (test fixture)
+    - `TEST_F(DeviceDiagnosticsTest, RegisterMethod)`
+    - `TEST_F(DeviceDiagnosticsTest, getConfiguration)`
+    - `TEST_F(DeviceDiagnosticsTest, getAVDecoderStatus)`
+- `Tests/L2Tests/tests/DeviceDiagnostics_L2Test.cpp`:
+    - `DeviceDiagnostics_L2test` (test fixture)
+    - `DiagnosticsNotificationHandler`
+    - `DeviceDiagnostics_L2test::onAVDecoderStatusChanged`
+    - `TEST_F(DeviceDiagnostics_L2test, LogMilestone_JSONRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, IDLE_GetAVDecoderStatus_JSONRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, ACTIVE_GetAVDecoderStatus_JSONRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, GetMilestones_JSONRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, GetConfiguration_JSONRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, LogMilestone_COMRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, IDLE_GetAVDecoderStatus_COMRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, ACTIVE_GetAVDecoderStatus_COMRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, PAUSED_GetAVDecoderStatus_COMRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, GetConfiguration_COMRPC)`
+    - `TEST_F(DeviceDiagnostics_L2test, GetMilestones_COMRPC)`
 
 ---
 
@@ -291,3 +315,4 @@ Key scenarios to validate:
 ## Change History
 
 - 2026-04-28 - openspec-explore - Initial spec generated from codebase exploration of `plugin/` and `IDeviceDiagnostics.h`.
+- 2026-04-28 - openspec-templater - Restructured to match spec template.
