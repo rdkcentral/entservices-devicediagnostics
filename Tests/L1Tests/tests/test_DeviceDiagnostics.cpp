@@ -19,6 +19,7 @@
 
 #include "gtest/gtest.h"
 #include <gmock/gmock.h>
+#include <fstream>
 
 #include "DeviceDiagnostics.h"
 #include "ThunderPortability.h"
@@ -161,4 +162,128 @@ TEST_F(DeviceDiagnosticsTest, getAVDecoderStatus)
 {
     EXPECT_EQ(Core::ERROR_NONE, handler_.Invoke(connection, _T("getAVDecoderStatus"), _T("{}"), response));
     EXPECT_EQ(response, _T("{\"avDecoderStatus\":\"IDLE\"}"));
+}
+
+// ---------------------------------------------------------------------------
+// GetPreviousRebootInfo tests
+// ---------------------------------------------------------------------------
+
+static const char* kPreviousRebootInfoFile = "/opt/secure/reboot/previousreboot.info";
+static const char* kHardPowerInfoFile      = "/opt/secure/reboot/hardpower.info";
+
+static void createDir(const char* path)
+{
+    // Ensure parent directory exists
+    std::string p(path);
+    size_t pos = p.rfind('/');
+    if (pos != std::string::npos) {
+        std::string dir = p.substr(0, pos);
+        // mkdir -p equivalent: ignore errors (dir may exist)
+        system(("mkdir -p " + dir).c_str());
+    }
+}
+
+static void writeFile(const char* path, const std::string& content)
+{
+    createDir(path);
+    std::ofstream f(path);
+    if (f.is_open()) {
+        f << content;
+        f.close();
+    }
+}
+
+static void removeFile(const char* path)
+{
+    ::unlink(path);
+}
+
+// Task 6.1: Both files exist with all fields present
+TEST_F(DeviceDiagnosticsTest, getPreviousRebootInfo_AllFieldsPresent)
+{
+    writeFile(kPreviousRebootInfoFile,
+        "PreviousRebootTime:20200128083540\n"
+        "PreviousRebootReason:FIRMWARE_FAILURE\n"
+        "PreviousRebootInitiatedBy:SystemPlugin\n"
+        "PreviousCustomReason:API Validation\n"
+        "PreviousOtherReason:API Validation\n");
+    writeFile(kHardPowerInfoFile, "Tue Jan 28 08:22:22 UTC 2020\n");
+
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+
+    EXPECT_EQ(result, Core::ERROR_NONE);
+    EXPECT_TRUE(success);
+    EXPECT_EQ(rebootInfo.timestamp,          _T("20200128083540"));
+    EXPECT_EQ(rebootInfo.reason,             _T("FIRMWARE_FAILURE"));
+    EXPECT_EQ(rebootInfo.source,             _T("SystemPlugin"));
+    EXPECT_EQ(rebootInfo.customReason,       _T("API Validation"));
+    EXPECT_EQ(rebootInfo.otherReason,        _T("API Validation"));
+    EXPECT_EQ(rebootInfo.lastHardPowerReset, _T("Tue Jan 28 08:22:22 UTC 2020"));
+
+    removeFile(kPreviousRebootInfoFile);
+    removeFile(kHardPowerInfoFile);
+}
+
+// Task 6.2: previousreboot.info missing → Core::ERROR_GENERAL
+TEST_F(DeviceDiagnosticsTest, getPreviousRebootInfo_MissingPrimaryFile)
+{
+    removeFile(kPreviousRebootInfoFile);
+    removeFile(kHardPowerInfoFile);
+
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = true;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+
+    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_FALSE(success);
+}
+
+// Task 6.3: hardpower.info missing → success: true, lastHardPowerReset empty
+TEST_F(DeviceDiagnosticsTest, getPreviousRebootInfo_MissingHardpowerFile)
+{
+    writeFile(kPreviousRebootInfoFile,
+        "PreviousRebootTime:20200128083540\n"
+        "PreviousRebootReason:FIRMWARE_FAILURE\n"
+        "PreviousRebootInitiatedBy:SystemPlugin\n"
+        "PreviousCustomReason:API Validation\n"
+        "PreviousOtherReason:API Validation\n");
+    removeFile(kHardPowerInfoFile);
+
+    Exchange::IDeviceDiagnostics::RebootInfo rebootInfo;
+    bool success = false;
+    Core::hresult result = DevDiagImpl->GetPreviousRebootInfo(rebootInfo, success);
+
+    EXPECT_EQ(result, Core::ERROR_NONE);
+    EXPECT_TRUE(success);
+    EXPECT_EQ(rebootInfo.timestamp, _T("20200128083540"));
+    EXPECT_TRUE(rebootInfo.lastHardPowerReset.empty());
+
+    removeFile(kPreviousRebootInfoFile);
+}
+
+// Task 6.4: GetFileContent with a valid file → returns true and correct content
+TEST_F(DeviceDiagnosticsTest, getFileContent_ValidFile)
+{
+    const char* tmpFile = "/tmp/test_dd_getcontent.txt";
+    writeFile(tmpFile, "hello world\n");
+
+    std::string content;
+    bool result = DevDiagImpl->GetFileContent(string(tmpFile), content);
+
+    EXPECT_TRUE(result);
+    EXPECT_FALSE(content.empty());
+    EXPECT_NE(content.find("hello world"), std::string::npos);
+
+    removeFile(tmpFile);
+}
+
+// Task 6.5: GetFileContent with a non-existent file → returns false
+TEST_F(DeviceDiagnosticsTest, getFileContent_MissingFile)
+{
+    std::string content = "should remain empty";
+    bool result = DevDiagImpl->GetFileContent(string("/tmp/nonexistent_dd_file_xyz.txt"), content);
+
+    EXPECT_FALSE(result);
 }

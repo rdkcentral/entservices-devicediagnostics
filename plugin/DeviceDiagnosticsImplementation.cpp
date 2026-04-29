@@ -21,10 +21,13 @@
 #include <curl/curl.h>
 #include <time.h>
 #include <fstream>
+#include <regex>
 
 #include "UtilsJsonRpc.h"
 
 #define MILESTONES_LOG_FILE                     "/opt/logs/rdk_milestones.log"
+#define PREVIOUS_REBOOT_INFO_FILE               "/opt/secure/reboot/previousreboot.info"
+#define HARD_POWER_INFO_FILE                    "/opt/secure/reboot/hardpower.info"
 
 
 /***
@@ -321,6 +324,75 @@ namespace WPEFramework
             success = true;
             return Core::ERROR_NONE; 
 
+        }
+
+        bool DeviceDiagnosticsImplementation::GetFileContent(const string& filePath, string& content)
+        {
+            std::ifstream fileStream(filePath.c_str(), std::ios::in);
+            if (!fileStream.is_open()) {
+                LOGERR("Failed to open file: %s", filePath.c_str());
+                return false;
+            }
+            content.assign((std::istreambuf_iterator<char>(fileStream)),
+                           std::istreambuf_iterator<char>());
+            fileStream.close();
+            return true;
+        }
+
+        Core::hresult DeviceDiagnosticsImplementation::GetPreviousRebootInfo(Exchange::IDeviceDiagnostics::RebootInfo& rebootInfo, bool& success)
+        {
+            LOGINFO("");
+
+            if (!Core::File(string(PREVIOUS_REBOOT_INFO_FILE)).Exists()) {
+                LOGERR("File not found: %s", PREVIOUS_REBOOT_INFO_FILE);
+                success = false;
+                return Core::ERROR_GENERAL;
+            }
+
+            string content;
+            if (!GetFileContent(PREVIOUS_REBOOT_INFO_FILE, content)) {
+                LOGERR("Failed to read file: %s", PREVIOUS_REBOOT_INFO_FILE);
+                success = false;
+                return Core::ERROR_GENERAL;
+            }
+
+            std::smatch match;
+            string temp;
+
+            auto extractField = [&](const std::string& pattern) -> string {
+                if (std::regex_search(content, match, std::regex(pattern)) && match.size() > 1) {
+                    string val = match[1].str();
+                    size_t s = val.find_first_not_of(" \t\r\n");
+                    size_t e = val.find_last_not_of(" \t\r\n");
+                    if (s != string::npos) {
+                        return val.substr(s, e - s + 1);
+                    }
+                }
+                return string("");
+            };
+
+            rebootInfo.timestamp    = extractField("(?:PreviousRebootTime:)([^\n]+)");
+            rebootInfo.reason       = extractField("(?:PreviousRebootReason:)([^\n]+)");
+            rebootInfo.source       = extractField("(?:PreviousRebootInitiatedBy:)([^\n]+)");
+            rebootInfo.customReason = extractField("(?:PreviousCustomReason:)([^\n]+)");
+            rebootInfo.otherReason  = extractField("(?:PreviousOtherReason:)([^\n]+)");
+
+            if (Core::File(string(HARD_POWER_INFO_FILE)).Exists()) {
+                string hardPowerContent;
+                if (GetFileContent(HARD_POWER_INFO_FILE, hardPowerContent)) {
+                    size_t nl = hardPowerContent.find('\n');
+                    string line = (nl != string::npos) ? hardPowerContent.substr(0, nl)
+                                                       : hardPowerContent;
+                    size_t s = line.find_first_not_of(" \t\r\n");
+                    size_t e = line.find_last_not_of(" \t\r\n");
+                    if (s != string::npos) {
+                        rebootInfo.lastHardPowerReset = line.substr(s, e - s + 1);
+                    }
+                }
+            }
+
+            success = true;
+            return Core::ERROR_NONE;
         }
 
         Core::hresult DeviceDiagnosticsImplementation::GetAVDecoderStatus(AvDecoderStatusResult& AVDecoderStatus)
