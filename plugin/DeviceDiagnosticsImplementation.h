@@ -109,7 +109,7 @@ namespace WPEFramework
             Core::hresult GetMilestones(IStringIterator*& milestones, bool& success) override;
             Core::hresult LogMilestone(const string& marker, bool& success) override;
             Core::hresult GetAVDecoderStatus(AvDecoderStatusResult& AVDecoderStatus) override;
-            Core::hresult GetPreviousRebootInfo(Exchange::IDeviceDiagnostics::RebootInfo& rebootInfo, bool& success) override;
+            Core::hresult GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success) override;
 
         private:
             mutable Core::CriticalSection _adminLock;
@@ -127,7 +127,6 @@ namespace WPEFramework
             int getMostActiveDecoderStatus();
             void onDecoderStatusChange(int status);
             int getConfig(const std::string& postData, std::list<ParamList>& paramListInfo);
-            bool GetFileContent(const string& filePath, string& content);
 
 #ifdef ENABLE_ERM
             static void *AVPollThread(void *arg);
