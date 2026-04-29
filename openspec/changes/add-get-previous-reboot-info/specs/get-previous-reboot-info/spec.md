@@ -3,7 +3,7 @@
 ### Requirement: GetPreviousRebootInfo returns structured reboot details
 The `DeviceDiagnostics` plugin SHALL expose a `getPreviousRebootInfo` JSON-RPC method that returns structured information about the most recent device reboot.
 
-The method SHALL read reboot details from `/opt/secure/reboot/previousreboot.info` and the last hard power reset timestamp from `/opt/secure/reboot/hardpower.info`.
+The method SHALL read reboot details from `/opt/secure/reboot/previousreboot.info` and the last hard power reset timestamp from `/opt/secure/reboot/hardpower.info`. **Both files must exist and contain valid JSON** for the API to return success.
 
 The JSON-RPC response SHALL follow this structure:
 
@@ -43,65 +43,86 @@ Core::hresult GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success);
 Where `RebootInfo` is:
 ```cpp
 struct EXTERNAL RebootInfo {
-    string timestamp       /* @text timestamp */;
-    string source          /* @text source */;
-    string reason          /* @text reason */;
-    string customReason    /* @text customReason */;
-    string otherReason     /* @text otherReason */;
+    string timestamp          /* @text timestamp */;
+    string source             /* @text source */;
+    string reason             /* @text reason */;
+    string customReason       /* @text customReason */;
+    string otherReason        /* @text otherReason */;
     string lastHardPowerReset /* @text lastHardPowerReset */;
 };
 ```
 
-The method SHALL return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` on error.
+The method SHALL return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` on any error, including missing files, empty files, or invalid JSON content.
 
-#### Scenario: Device has rebooted and info file exists
-- **WHEN** the device has rebooted and `/opt/secure/reboot/previousreboot.info` exists and is readable
+#### Scenario: Device has rebooted and both files exist with valid JSON
+- **WHEN** both `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info` exist, are non-empty, and contain valid JSON
 - **THEN** the API SHALL return `success: true` and populate all available fields in `rebootInfo`
 
-#### Scenario: Previousreboot.info file is missing
+#### Scenario: previousreboot.info file is missing
 - **WHEN** `/opt/secure/reboot/previousreboot.info` does not exist
-- **THEN** the API SHALL return `success: false`
+- **THEN** the API SHALL return `Core::ERROR_GENERAL` and `success: false`
 
-#### Scenario: Both info files exist
-- **WHEN** both `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info` exist
-- **THEN** the `lastHardPowerReset` field SHALL be populated from `/opt/secure/reboot/hardpower.info`
-
-#### Scenario: Hardpower.info file is missing
+#### Scenario: hardpower.info file is missing
 - **WHEN** `/opt/secure/reboot/hardpower.info` does not exist
-- **THEN** the `lastHardPowerReset` field SHALL be left empty and the API SHALL still return `success: true` if the primary reboot info file was read successfully
+- **THEN** the API SHALL return `Core::ERROR_GENERAL` and `success: false`
 
-### Requirement: GetPreviousRebootInfo parses reboot info file fields
-The implementation SHALL parse the following key-value fields from `/opt/secure/reboot/previousreboot.info` using regex or line-based parsing:
+#### Scenario: Both info files exist with valid JSON
+- **WHEN** both `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info` exist and contain valid JSON
+- **THEN** `lastHardPowerReset` SHALL be read from the `lastHardPowerReset` key of `/opt/secure/reboot/hardpower.info`
 
-| Field in file           | Maps to response field |
-|-------------------------|------------------------|
-| `PreviousRebootTime:`   | `timestamp`            |
-| `PreviousRebootReason:` | `reason`               |
-| `PreviousRebootInitiatedBy:` | `source`          |
-| `PreviousCustomReason:` | `customReason`         |
-| `PreviousOtherReason:`  | `otherReason`          |
+### Requirement: GetPreviousRebootInfo parses reboot info files as JSON
+Both `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info` SHALL be in JSON format. The implementation SHALL use `JsonObject::FromString()` to parse the files.
 
-Fields not present in the file SHALL default to the empty string `""`.
+The fields in `/opt/secure/reboot/previousreboot.info` SHALL map as follows:
 
-#### Scenario: All fields present in file
-- **WHEN** the previousreboot.info file contains all expected key-value pairs
-- **THEN** all fields in `rebootInfo` SHALL be populated with their corresponding values
+| JSON key in file        | Maps to `RebootInfo` field |
+|-------------------------|---------------------------|
+| `timestamp`             | `timestamp`               |
+| `source`                | `source`                  |
+| `reason`                | `reason`                  |
+| `customReason`          | `customReason`            |
+| `otherReason`           | `otherReason`             |
 
-#### Scenario: Some fields missing from file
-- **WHEN** the previousreboot.info file is missing one or more expected fields
-- **THEN** the missing fields SHALL default to `""` and the API SHALL still return `success: true`
+The field in `/opt/secure/reboot/hardpower.info`:
 
-### Requirement: File existence checked with Core::File
-The implementation SHALL use `Core::File` to check whether the reboot info files exist before attempting to read them. A helper function `GetFileContent` SHALL be implemented to read the entire content of a file into a string.
+| JSON key in file        | Maps to `RebootInfo` field |
+|-------------------------|---------------------------|
+| `lastHardPowerReset`    | `lastHardPowerReset`      |
+
+Fields not present in the JSON object SHALL default to the empty string `""`.
+
+#### Scenario: All fields present in both JSON files
+- **WHEN** both files contain all expected JSON keys with non-empty values
+- **THEN** all fields in `rebootInfo` SHALL be populated with their corresponding values and `success` SHALL be `true`
+
+#### Scenario: Some optional fields missing from JSON
+- **WHEN** the JSON files are valid but missing one or more optional fields (e.g., `reason`, `customReason`)
+- **THEN** missing fields SHALL default to `""`, the API SHALL still return `Core::ERROR_NONE` and `success: true`
+
+#### Scenario: Invalid JSON in primaryreboot.info
+- **WHEN** `/opt/secure/reboot/previousreboot.info` contains content that is not valid JSON
+- **THEN** the API SHALL return `Core::ERROR_GENERAL` and `success: false`
+
+#### Scenario: Invalid JSON in hardpower.info
+- **WHEN** `/opt/secure/reboot/hardpower.info` contains content that is not valid JSON
+- **THEN** the API SHALL return `Core::ERROR_GENERAL` and `success: false`
+
+#### Scenario: Empty previousreboot.info
+- **WHEN** `/opt/secure/reboot/previousreboot.info` exists but is empty
+- **THEN** the API SHALL return `Core::ERROR_GENERAL` and `success: false`
+
+### Requirement: File existence checked with Core::File and content read via free function overload
+The implementation SHALL use `Core::File::Exists()` to check whether both reboot info files exist before attempting to read them. File content SHALL be read using an overloaded free function `getFileContent(std::string, std::string&)` that reads the entire file into a string via `std::stringstream`.
 
 #### Scenario: File existence check before read
 - **WHEN** `GetPreviousRebootInfo` is called
-- **THEN** the implementation SHALL use `Core::File` to verify the existence of `/opt/secure/reboot/previousreboot.info` before attempting to open or read it
+- **THEN** the implementation SHALL use `Core::File` to verify the existence of `/opt/secure/reboot/previousreboot.info` before reading it
+- **THEN** the implementation SHALL use `Core::File` to verify the existence of `/opt/secure/reboot/hardpower.info` before reading it
 
-#### Scenario: GetFileContent reads file successfully
-- **WHEN** a valid, readable file path is provided to `GetFileContent`
+#### Scenario: getFileContent reads file successfully
+- **WHEN** a valid, readable file path is provided to `getFileContent(string, string&)`
 - **THEN** the function SHALL return the full file contents as a string and return `true`
 
-#### Scenario: GetFileContent fails on missing file
-- **WHEN** a non-existent file path is provided to `GetFileContent`
-- **THEN** the function SHALL return `false` and leave the output string empty
+#### Scenario: getFileContent fails on missing file
+- **WHEN** a non-existent file path is provided to `getFileContent(string, string&)`
+- **THEN** the function SHALL return `false`

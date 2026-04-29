@@ -2,7 +2,7 @@
 
 The `DeviceDiagnostics` Thunder plugin currently exposes `GetConfiguration`, `GetMilestones`, `LogMilestone`, and `GetAVDecoderStatus`. It does not yet support querying the previous reboot reason.
 
-The `SystemServices` plugin has a similar method (`getPreviousRebootInfo2`) that reads from `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info`. That logic serves as the reference implementation for this change.
+The `SystemServices` plugin has a similar method (`getPreviousRebootInfo2`) that reads from `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info`. That method uses regex-based key-value parsing. This implementation takes a different approach: both files are expected to be in **JSON format** and are parsed using Thunder's `JsonObject::FromString()`.
 
 The Exchange interface (`IDeviceDiagnostics`) is defined outside this repo. This design assumes that the `GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success)` method and `RebootInfo` struct are already declared in the interface file and that `Exchange::JDeviceDiagnostics` auto-generates the JSON-RPC binding.
 
@@ -11,105 +11,111 @@ The Exchange interface (`IDeviceDiagnostics`) is defined outside this repo. This
 **Goals:**
 - Implement `GetPreviousRebootInfo` in `DeviceDiagnosticsImplementation.cpp`.
 - Declare the method in `DeviceDiagnosticsImplementation.h`.
-- Add a private `GetFileContent(const string& filePath, string& content)` helper to read file contents into a string.
-- Use `Core::File` for file existence checks (not `Utils::fileExists` or `std::ifstream` directly).
-- Return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` on any failure.
-- Parse fields (`timestamp`, `source`, `reason`, `customReason`, `otherReason`) from `/opt/secure/reboot/previousreboot.info`.
-- Read `lastHardPowerReset` from `/opt/secure/reboot/hardpower.info`.
+- Add an overloaded free function `getFileContent(std::string, std::string&)` alongside the existing list-based overload.
+- Use `Core::File::Exists()` for file existence checks.
+- Parse both files as JSON using `JsonObject::FromString()`.
+- Return `Core::ERROR_GENERAL` if either file is missing, empty, or contains invalid JSON.
+- Return `Core::ERROR_NONE` only when both files are successfully read and parsed.
 
 **Non-Goals:**
 - Modifying the Exchange interface file (assumed already updated externally).
 - Writing or modifying reboot info files.
 - Adding new JSON-RPC registration calls (auto-generated stubs handle this).
 - Changing `DeviceDiagnostics.cpp` plugin layer (only the implementation layer changes).
+- Supporting the legacy line-based `Key:Value` file format used by `SystemServices`.
 
 ## Decisions
 
-### Decision 1: Use `Core::File` for file existence check
-**Chosen:** `Core::File file(path); if (file.Exists()) { ... }`  
-**Rationale:** Consistent with Thunder framework idiom for file operations. Avoids the utility helper (`Utils::fileExists`) which has a dependency on non-core utilities.  
-**Alternative considered:** `std::ifstream` — rejected because it conflates existence check with read and does not communicate filesystem errors explicitly.
+### Decision 1: Use `Core::File::Exists()` for file existence check
+**Chosen:** `Core::File(string(path)).Exists()`
+**Rationale:** Consistent with Thunder framework idiom used throughout this plugin (see `GetMilestones`). Avoids mixing Thunder and non-Thunder filesystem utilities.
 
-### Decision 2: Implement a private `GetFileContent` helper
-**Chosen:** `bool GetFileContent(const string& filePath, string& content)` reads the full file into a string using `std::ifstream`.  
-**Rationale:** Keeps `GetPreviousRebootInfo` focused on parsing logic. Can be reused for both files. Returns `false` if file cannot be opened.
+### Decision 2: Use free function overload `getFileContent(string, string&)` rather than a private class method
+**Chosen:** Overloaded free function alongside existing `getFileContent(string, list<string>&)`.
+**Rationale:** Consistent with the existing codebase pattern. The list-based overload already exists as a free function; adding a string-based overload maintains the same convention without introducing a class member just for file I/O. Uses `std::stringstream` to buffer-read the file.
+**Alternative considered:** Private class method `GetFileContent` — rejected to keep consistency with the file-level helper pattern already in place.
 
-### Decision 3: Use `std::regex` for field parsing (reference pattern from SystemServices)
-**Chosen:** Parse key-value pairs using `std::regex_search` with named patterns such as `(?:PreviousRebootTime:)([^\n]+)`.  
-**Rationale:** The `SystemServices::getPreviousRebootInfo2` reference implementation uses this approach successfully. Line-based parsing is an alternative but regex is already validated in the codebase.  
-**Alternative considered:** Line-by-line split + `find(':')` — simpler but more brittle for multi-line edge cases.
+### Decision 3: Parse files as JSON using `JsonObject::FromString()`
+**Chosen:** Both info files are treated as JSON objects and parsed with `JsonObject::FromString()`.
+**Rationale:** JSON is a cleaner, structured format that avoids fragile regex patterns. The Thunder framework's `JsonObject` is already used throughout the plugin and provides robust parsing with proper error detection. If `FromString()` fails, the error is reported immediately.
+**Alternative considered:** Regex parsing of `Key:Value` lines (as used in `SystemServices::getPreviousRebootInfo2`) — rejected because it is fragile to whitespace/formatting variations and does not provide structured validation. JSON parsing provides implicit validation of file integrity.
 
-### Decision 4: `lastHardPowerReset` parsed with `getline` from hardpower.info
-**Chosen:** Read the entire first meaningful line from `/opt/secure/reboot/hardpower.info` as the `lastHardPowerReset` value.  
-**Rationale:** The hardpower.info file contains a single date-time string. Simple `getline` is sufficient.
+### Decision 4: Both files are required — `hardpower.info` missing is a hard failure
+**Chosen:** If either file is absent, empty, or invalid, `GetPreviousRebootInfo` returns `Core::ERROR_GENERAL` and `success = false`.
+**Rationale:** Both files together form a complete reboot record. If `hardpower.info` is absent, the response would be incomplete. Returning partial data silently could mislead diagnostics consumers. Strict failure semantics make the contract unambiguous.
+**Alternative considered:** Treat `hardpower.info` as optional, returning `success: true` with `lastHardPowerReset` empty — rejected in favour of strict, predictable error handling.
 
 ### Decision 5: Error handling strategy
-**Chosen:** Return `Core::ERROR_GENERAL` (and set `success = false`) if the primary reboot info file is missing or unreadable. Return `Core::ERROR_NONE` (and set `success = true`) if the primary file is read successfully, even if hardpower.info is absent.  
-**Rationale:** `lastHardPowerReset` is supplementary information; its absence should not block the primary response.
+**Chosen:** Return `Core::ERROR_GENERAL` (and `success = false`) on any of:
+- Primary file does not exist
+- Hardpower file does not exist
+- Either file is empty
+- Either file fails JSON parsing
 
-## Implementation Approach
+Return `Core::ERROR_NONE` (and `success = true`) only when both files are read and parsed successfully.
+
+## Implementation Summary
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| `plugin/DeviceDiagnosticsImplementation.h` | Add `GetPreviousRebootInfo` declaration and `GetFileContent` private helper declaration |
-| `plugin/DeviceDiagnosticsImplementation.cpp` | Implement `GetPreviousRebootInfo` and `GetFileContent` |
+| `plugin/DeviceDiagnosticsImplementation.h` | Added `GetPreviousRebootInfo(RebootInfo&, bool&)` public override |
+| `plugin/DeviceDiagnosticsImplementation.cpp` | Added `#include <sstream>`, file path constants, `getFileContent(string, string&)` overload, and `GetPreviousRebootInfo` implementation |
+| `Tests/L1Tests/tests/test_DeviceDiagnostics.cpp` | Added 7 L1 test cases covering success, missing files, invalid JSON, empty files, and partial field scenarios |
 
-### `GetPreviousRebootInfo` Logic (pseudocode)
+### `GetPreviousRebootInfo` Logic
 ```
-1. Declare file path constants:
-   PREVIOUS_REBOOT_INFO_FILE = "/opt/secure/reboot/previousreboot.info"
-   HARD_POWER_INFO_FILE      = "/opt/secure/reboot/hardpower.info"
+1. Check Core::File(PREVIOUS_REBOOT_INFO_FILE).Exists()
+   - If false: success = false; return Core::ERROR_GENERAL
 
-2. Use Core::File to check PREVIOUS_REBOOT_INFO_FILE exists.
-   - If missing: success = false; return Core::ERROR_GENERAL
+2. Check Core::File(HARD_POWER_INFO_FILE).Exists()
+   - If false: success = false; return Core::ERROR_GENERAL
 
-3. Call GetFileContent(PREVIOUS_REBOOT_INFO_FILE, content).
+3. Call getFileContent(PREVIOUS_REBOOT_INFO_FILE, rebootInfoContent)
+   - If fails or content empty: success = false; return Core::ERROR_GENERAL
+
+4. JsonObject::FromString(rebootInfoContent)
    - If fails: success = false; return Core::ERROR_GENERAL
+   - Extract: timestamp, source, reason, customReason, otherReason
 
-4. Use std::regex_search to extract:
-   - PreviousRebootTime:       → rebootInfo.timestamp
-   - PreviousRebootReason:     → rebootInfo.reason
-   - PreviousRebootInitiatedBy: → rebootInfo.source
-   - PreviousCustomReason:     → rebootInfo.customReason
-   - PreviousOtherReason:      → rebootInfo.otherReason
+5. Call getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo)
+   - If fails or content empty: success = false; return Core::ERROR_GENERAL
 
-5. Use Core::File to check HARD_POWER_INFO_FILE exists.
-   - If exists: call GetFileContent and parse first non-empty line
-     → rebootInfo.lastHardPowerReset
+6. JsonObject::FromString(hardPowerInfo)
+   - If fails: success = false; return Core::ERROR_GENERAL
+   - Extract: lastHardPowerReset
 
-6. success = true; return Core::ERROR_NONE
+7. Populate rebootInfo struct fields (std::move for efficiency)
+   success = true; return Core::ERROR_NONE
 ```
 
-### `GetFileContent` Logic (pseudocode)
+### `getFileContent(string, string&)` Logic
 ```
-1. Open std::ifstream for filePath.
-   - If fails: return false
-2. Read entire contents into string via std::istreambuf_iterator.
-3. Close file. Return true.
+1. Open std::ifstream for fileName
+   - If fails to open: return false
+2. Use std::stringstream to buffer-read entire contents
+3. Copy to fileContent string; close file; return true
 ```
 
 ## Risks / Trade-offs
 
-- **Risk: Regex parsing fragility** → The regex patterns are tied to the exact key names in the file format. If the file format changes (different key names), the parser silently returns empty strings.  
-  *Mitigation*: Empty fields default to `""`, so behavior degrades gracefully. The file format is an OS-level convention unlikely to change.
+- **Risk: JSON format dependency** → Both files must be in JSON. If the OS writes these files in a legacy key-value format, parsing will fail.
+  *Mitigation*: Document the expected file format clearly. The existing `SystemServices` implementation uses the key-value format; platform owners must ensure `DeviceDiagnostics` targets devices whose reboot files are in JSON format.
 
-- **Risk: Interface not yet updated** → This implementation assumes `GetPreviousRebootInfo` and `RebootInfo` are already in the Exchange interface. If they are not, the build will fail with missing symbol errors.  
+- **Risk: Strict error on missing hardpower.info** → Some platforms may not write `hardpower.info` on every reboot (e.g., soft reboot without power cycle).
+  *Trade-off accepted*: Strict error handling preferred for diagnostic correctness. If relaxation is needed, `hardpower.info` can be made optional in a follow-up change.
+
+- **Risk: Interface not yet updated** → If `RebootInfo` / `GetPreviousRebootInfo` are not yet in the Exchange interface, the build will fail.
   *Mitigation*: Coordinate interface changes before merging.
-
-- **Risk: Large reboot info files** → Reading the entire file with `GetFileContent` could be inefficient for unexpectedly large files.  
-  *Mitigation*: Reboot info files are typically very small (~1 KB). No streaming needed.
 
 ## Migration Plan
 
-1. Ensure Exchange interface (`IDeviceDiagnostics`) and `JDeviceDiagnostics` stub are updated externally with `GetPreviousRebootInfo` and `RebootInfo`.
-2. Implement `GetFileContent` and `GetPreviousRebootInfo` in `DeviceDiagnosticsImplementation.cpp`.
-3. Add declaration to `DeviceDiagnosticsImplementation.h`.
-4. Build and verify JSON-RPC stub auto-registration picks up the new method.
-5. Run L1 unit tests.
+1. Ensure Exchange interface (`IDeviceDiagnostics`) and `JDeviceDiagnostics` stub are updated externally.
+2. Ensure both platform reboot info files are written in JSON format.
+3. Build, verify L1 tests pass.
 
 ## Open Questions
 
-- Are the exact file paths (`/opt/secure/reboot/previousreboot.info`, `/opt/secure/reboot/hardpower.info`) confirmed for all target platforms, or are they platform-specific?
-- Should missing individual fields (e.g., `reason`) cause `success: false`, or should partial data always return `success: true`?
+- Should `hardpower.info` be treated as optional (non-fatal if missing)? Current implementation treats it as required.
+- Are both reboot files confirmed to be in JSON format on all target platforms?

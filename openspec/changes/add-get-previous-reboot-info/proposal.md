@@ -5,10 +5,12 @@ After a device reboot (scheduled, unscheduled, user-initiated, or system-initiat
 ## What Changes
 
 - **New API** `getPreviousRebootInfo` added to the `DeviceDiagnostics` Thunder plugin.
-- The API reads reboot details from `/opt/secure/reboot/previousreboot.info` and the last hard power reset timestamp from `/opt/secure/reboot/hardpower.info`.
+- Both `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info` are read and parsed as **JSON**. Both files must exist, be non-empty, and contain valid JSON for the API to succeed.
 - The implementation is added to `DeviceDiagnosticsImplementation.cpp` as `GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success)`.
+- A free function overload `getFileContent(std::string, std::string&)` is added alongside the existing list-based overload to read file contents into a string using `std::stringstream`.
+- `Core::File::Exists()` is used to check existence of both files before reading.
 - The `RebootInfo` structure (with fields: `timestamp`, `source`, `reason`, `customReason`, `otherReason`, `lastHardPowerReset`) is defined in the Exchange interface (outside this repo); this change implements the method body.
-- All methods return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` on error.
+- All methods return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` on any error (missing file, empty file, or invalid JSON).
 
 ## Capabilities
 
