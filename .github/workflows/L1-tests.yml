@@ -124,7 +124,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-testframework
           path: entservices-testframework
-          ref: feature/RDKEMW-16778_1
+          ref: 1.0.6
 
       - name: Checkout entservices-devicediagnostics
         if: ${{ inputs.caller_source == 'local' }}
@@ -138,7 +138,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-devicediagnostics
           path: entservices-devicediagnostics
-          ref: feature/RDKEMW-16778_1
+          ref: develop
 
       - name: Checkout googletest
         uses: actions/checkout@v3
@@ -204,7 +204,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-apis
           path: entservices-apis
-          ref: feature/RDKEMW-16778
+          ref: develop
           #token : ${{ secrets.RDKCM_RDKE }}
           run: rm -rf $GITHUB_WORKSPACE/entservices-apis/jsonrpc/DTV.json
 
