@@ -124,7 +124,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-testframework
           path: entservices-testframework
-          ref: 1.0.1
+          ref: 1.0.6
 
       - name: Checkout entservices-devicediagnostics
         if: ${{ inputs.caller_source == 'local' }}
