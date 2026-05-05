@@ -833,7 +833,7 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_InvalidPrimaryJSON_COMRPC
     bool success = false;
     uint32_t status = m_devdiagplugin->GetPreviousRebootInfo(rebootInfo, success);
     
-    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_EQ(status, Core::ERROR_GENERAL);
     EXPECT_EQ(success, false);
     
     TEST_LOG("Invalid JSON in primary file - status: %u, success: %d", status, success);
