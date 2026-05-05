@@ -447,8 +447,8 @@ namespace WPEFramework
 			
 			JsonObject hardPowerInfoJson;
             bool hardPowerStatus = getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo);
-            if (hardPowerStatus && hardPowerInfoJson.FromString(hardPowerInfo)) {
-			    rebootInfo.lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();  
+            if (hardPowerStatus && !hardPowerInfo.empty() && hardPowerInfoJson.FromString(hardPowerInfo)) {
+			    rebootInfo.lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();
             } else {
 			    rebootInfo.lastHardPowerReset = "Unknown";
 		        LOGERR("Failed to read or parse hard power info file: %s", HARD_POWER_INFO_FILE);
