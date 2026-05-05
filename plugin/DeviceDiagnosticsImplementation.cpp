@@ -418,9 +418,7 @@ namespace WPEFramework
             LOGINFO("");
             
             bool retAPIStatus = false;
-            string timestamp, source, reason, customReason, otherReason, lastHardPowerReset;
             string rebootInfoContent;
-            string hardPowerInfo;
             Core::hresult result = Core::ERROR_GENERAL;
             
             success = false;
@@ -437,11 +435,11 @@ namespace WPEFramework
 			
             JsonObject rebootInfoJson;
             if (rebootInfoJson.FromString(rebootInfoContent)) {
-                timestamp = rebootInfoJson["timestamp"].String();
-                source = rebootInfoJson["source"].String();
-                reason = rebootInfoJson["reason"].String();
-                customReason = rebootInfoJson["customReason"].String();     
-                otherReason = rebootInfoJson["otherReason"].String();
+                rebootInfo.timestamp = rebootInfoJson["timestamp"].String();
+                rebootInfo.source = rebootInfoJson["source"].String();
+                rebootInfo.reason = rebootInfoJson["reason"].String();
+                rebootInfo.customReason= rebootInfoJson["customReason"].String();     
+                rebootInfo.otherReason = rebootInfoJson["otherReason"].String();
             } else {
                 LOGERR("Failed to parse reboot info JSON");
                 return result;
@@ -450,19 +448,8 @@ namespace WPEFramework
 			JsonObject hardPowerInfoJson;
             bool hardPowerStatus = getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo);
             if (hardPowerStatus && hardPowerInfoJson.FromString(hardPowerInfo)) {
-			    lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();  
-            } else {
-				lastHardPowerReset = "Unknown";
-                LOGERR("Failed to parse hard power info JSON");
+			    rebootInfo.lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();  
             }
-			
-            rebootInfo.timestamp = std::move(timestamp);
-            rebootInfo.source = std::move(source);
-            rebootInfo.reason = std::move(reason);
-            rebootInfo.customReason = std::move(customReason);
-            rebootInfo.otherReason = std::move(otherReason);
-            rebootInfo.lastHardPowerReset = std::move(lastHardPowerReset);
-            
             success = true;
                  
             return Core::ERROR_NONE;
