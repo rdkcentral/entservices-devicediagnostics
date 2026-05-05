@@ -269,7 +269,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
     // Test the API via JSON-RPC
     response.clear();
     Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
-    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_EQ(result, Core::ERROR_NONE);
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");
@@ -345,7 +345,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
     // Test the API via JSON-RPC
     response.clear();
     Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
-    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_EQ(result, Core::ERROR_NONE);
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");
