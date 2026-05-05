@@ -451,7 +451,7 @@ namespace WPEFramework
 			    rebootInfo.lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();  
             } else {
 			    rebootInfo.lastHardPowerReset = "Unknown";
-		        LOGERR("Failed to parse reboot info JSON");
+		        LOGERR("Failed to read or parse hard power info file: %s", HARD_POWER_INFO_FILE);
 			}
             success = true;
                  
