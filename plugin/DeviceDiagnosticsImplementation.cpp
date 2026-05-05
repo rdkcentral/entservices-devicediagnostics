@@ -449,7 +449,10 @@ namespace WPEFramework
             bool hardPowerStatus = getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo);
             if (hardPowerStatus && hardPowerInfoJson.FromString(hardPowerInfo)) {
 			    rebootInfo.lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();  
-            }
+            } else {
+			    rebootInfo.lastHardPowerReset = "Unknown";
+		        LOGERR("Failed to parse reboot info JSON");
+			}
             success = true;
                  
             return Core::ERROR_NONE;
