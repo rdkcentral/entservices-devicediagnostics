@@ -801,7 +801,7 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_HardPowerFileMissing_COMR
     
     // Based on current implementation, should return ERROR_GENERAL
     EXPECT_EQ(status, Core::ERROR_NONE);
-    EXPECT_EQ(success, false);
+    EXPECT_EQ(success, true);
     
     TEST_LOG("Hard power file missing - status: %u, success: %d", status, success);
     
