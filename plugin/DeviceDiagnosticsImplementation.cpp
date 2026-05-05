@@ -447,20 +447,15 @@ namespace WPEFramework
                 return result;
             }
 			
+			JsonObject hardPowerInfoJson;
             bool hardPowerStatus = getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo);
-            if (!hardPowerStatus || hardPowerInfo.empty()) {
-				lastHardPowerReset = "Unknown";
-                LOGERR("Failed to read hard power info file or file is empty");
+            if (hardPowerStatus && hardPowerInfoJson.FromString(hardPowerInfo)) {
+			    lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();  
             } else {
-                JsonObject hardPowerInfoJson;
-                if (hardPowerInfoJson.FromString(hardPowerInfo)) {
-                    lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();
-                
-                } else {
-                    LOGERR("Failed to parse hard power info JSON");
-                    return result;
-                }
-			}
+				lastHardPowerReset = "Unknown";
+                LOGERR("Failed to parse hard power info JSON");
+            }
+			
             rebootInfo.timestamp = std::move(timestamp);
             rebootInfo.source = std::move(source);
             rebootInfo.reason = std::move(reason);
