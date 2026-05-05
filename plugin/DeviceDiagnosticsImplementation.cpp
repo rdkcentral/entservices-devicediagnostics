@@ -418,7 +418,7 @@ namespace WPEFramework
             LOGINFO("");
             
             bool retAPIStatus = false;
-            string rebootInfoContent;
+            string rebootInfoContent, hardPowerInfo;
             Core::hresult result = Core::ERROR_GENERAL;
             
             success = false;
