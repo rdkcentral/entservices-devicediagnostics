@@ -3,7 +3,7 @@
 ### Requirement: GetPreviousRebootInfo returns structured reboot details
 The `DeviceDiagnostics` plugin SHALL expose a `getPreviousRebootInfo` JSON-RPC method that returns structured information about the most recent device reboot.
 
-The method SHALL read reboot details from `/opt/secure/reboot/previousreboot.info` and the last hard power reset timestamp from `/opt/secure/reboot/hardpower.info`. **Both files must exist and contain valid JSON** for the API to return success.
+The method SHALL read reboot details from `/opt/secure/reboot/previousreboot.info`. This file must exist, be non-empty, and contain valid JSON — if not, the API returns `Core::ERROR_GENERAL`. The last hard power reset timestamp is read from `/opt/secure/reboot/hardpower.info`; if this file is missing, unreadable, contains invalid JSON, or lacks the `lastHardPowerReset` key, `lastHardPowerReset` SHALL be set to `"Unknown"` and the API SHALL still return success.
 
 The JSON-RPC response SHALL follow this structure:
 
@@ -52,7 +52,7 @@ struct EXTERNAL RebootInfo {
 };
 ```
 
-The method SHALL return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` on any error, including missing files, empty files, or invalid JSON content.
+The method SHALL return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` only if `previousreboot.info` is missing, empty, or contains invalid JSON.
 
 #### Scenario: Device has rebooted and both files exist with valid JSON
 - **WHEN** both `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info` exist, are non-empty, and contain valid JSON
@@ -64,7 +64,7 @@ The method SHALL return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` 
 
 #### Scenario: hardpower.info file is missing
 - **WHEN** `/opt/secure/reboot/hardpower.info` does not exist
-- **THEN** the API SHALL return `Core::ERROR_GENERAL` and `success: false`
+- **THEN** the API SHALL return `Core::ERROR_NONE` and `success: true` with `lastHardPowerReset` set to `"Unknown"`
 
 #### Scenario: Both info files exist with valid JSON
 - **WHEN** both `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info` exist and contain valid JSON
@@ -105,19 +105,19 @@ Fields not present in the JSON object SHALL default to the empty string `""`.
 
 #### Scenario: Invalid JSON in hardpower.info
 - **WHEN** `/opt/secure/reboot/hardpower.info` contains content that is not valid JSON
-- **THEN** the API SHALL return `Core::ERROR_GENERAL` and `success: false`
+- **THEN** the API SHALL return `Core::ERROR_NONE` and `success: true` with `lastHardPowerReset` set to `"Unknown"`
 
 #### Scenario: Empty previousreboot.info
 - **WHEN** `/opt/secure/reboot/previousreboot.info` exists but is empty
 - **THEN** the API SHALL return `Core::ERROR_GENERAL` and `success: false`
 
 ### Requirement: File existence checked with Core::File and content read via free function overload
-The implementation SHALL use `Core::File::Exists()` to check whether both reboot info files exist before attempting to read them. File content SHALL be read using an overloaded free function `getFileContent(std::string, std::string&)` that reads the entire file into a string via `std::stringstream`.
+The implementation SHALL use `Core::File::Exists()` to check whether `previousreboot.info` exists before attempting to read it. File content SHALL be read using an overloaded free function `getFileContent(std::string, std::string&)` that reads the entire file into a string via `std::stringstream`.
 
 #### Scenario: File existence check before read
 - **WHEN** `GetPreviousRebootInfo` is called
 - **THEN** the implementation SHALL use `Core::File` to verify the existence of `/opt/secure/reboot/previousreboot.info` before reading it
-- **THEN** the implementation SHALL use `Core::File` to verify the existence of `/opt/secure/reboot/hardpower.info` before reading it
+- **NOTE** No pre-existence check is performed on `/opt/secure/reboot/hardpower.info`; its absence is handled gracefully at the read/parse step
 
 #### Scenario: getFileContent reads file successfully
 - **WHEN** a valid, readable file path is provided to `getFileContent(string, string&)`

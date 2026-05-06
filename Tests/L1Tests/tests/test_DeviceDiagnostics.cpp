@@ -320,7 +320,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
 }
 
 /************Test case Details **************************
-** Test 3.5: Invalid JSON in hardpower.info (should return ERROR_GENERAL based on current implementation)
+** Test 3.5: Invalid JSON in hardpower.info (returns ERROR_NONE with lastHardPowerReset="Unknown")
 *******************************************************/
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
 {

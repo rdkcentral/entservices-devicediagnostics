@@ -19,14 +19,14 @@
 ## 3. Implement `GetPreviousRebootInfo`
 
 - [x] 3.1 Use `Core::File(string(PREVIOUS_REBOOT_INFO_FILE)).Exists()` to check for the primary file; if missing, set `success = false` and return `Core::ERROR_GENERAL`.
-- [x] 3.2 Use `Core::File(string(HARD_POWER_INFO_FILE)).Exists()` to check for the hardpower file; if missing, set `success = false` and return `Core::ERROR_GENERAL`.
+- [x] 3.2 ~~Use `Core::File(string(HARD_POWER_INFO_FILE)).Exists()` to check for the hardpower file; if missing, set `success = false` and return `Core::ERROR_GENERAL`.~~ _(Removed: `hardpower.info` is treated as non-fatal; existence is not pre-checked separately.)_
 - [x] 3.3 Call `getFileContent(PREVIOUS_REBOOT_INFO_FILE, rebootInfoContent)`; if it returns `false` or content is empty, set `success = false` and return `Core::ERROR_GENERAL`.
 - [x] 3.4 Parse `rebootInfoContent` with `JsonObject::FromString()`; if parse fails, return `Core::ERROR_GENERAL`.
 - [x] 3.5 Extract `timestamp`, `source`, `reason`, `customReason`, `otherReason` from the parsed JSON object.
-- [x] 3.6 Call `getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo)`; if it returns `false` or content is empty, return `Core::ERROR_GENERAL`.
-- [x] 3.7 Parse `hardPowerInfo` with `JsonObject::FromString()`; if parse fails, return `Core::ERROR_GENERAL`.
-- [x] 3.8 Extract `lastHardPowerReset` from the hardpower JSON object.
-- [x] 3.9 Assign all fields to `rebootInfo` using `std::move`, set `success = true`, and return `Core::ERROR_NONE`.
+- [x] 3.6 Call `getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo)`; if it returns `false`, set `rebootInfo.lastHardPowerReset = "Unknown"` and continue (non-fatal).
+- [x] 3.7 Parse `hardPowerInfo` with `JsonObject::FromString()`; if parse fails or `HasLabel("lastHardPowerReset")` returns false, set `rebootInfo.lastHardPowerReset = "Unknown"` and continue (non-fatal).
+- [x] 3.8 If `lastHardPowerReset` value is empty or `"null"`, set it to `"Unknown"`; otherwise assign the actual value.
+- [x] 3.9 Set `success = true` and return `Core::ERROR_NONE`.
 
 ## 4. Verify JSON-RPC Auto-Registration
 
@@ -41,9 +41,9 @@
 ## 6. Testing
 
 - [x] 6.1 Add L1 test `GetPreviousRebootInfo_Success_AllFields`: both files exist with valid JSON and all fields present — expect `Core::ERROR_NONE` and all fields populated.
-- [x] 6.2 Add L1 test `GetPreviousRebootInfo_HardPowerFileMissing`: primary file exists, `hardpower.info` missing — expect `Core::ERROR_GENERAL`.
+- [x] 6.2 Add L1 test `GetPreviousRebootInfo_HardPowerFileMissing`: primary file exists, `hardpower.info` missing — expect `Core::ERROR_NONE` with `lastHardPowerReset = "Unknown"`.
 - [x] 6.3 Add L1 test `GetPreviousRebootInfo_PrimaryFileMissing`: neither file exists — expect `Core::ERROR_GENERAL`.
 - [x] 6.4 Add L1 test `GetPreviousRebootInfo_InvalidPrimaryJSON`: primary file contains invalid JSON — expect `Core::ERROR_GENERAL`.
-- [x] 6.5 Add L1 test `GetPreviousRebootInfo_InvalidHardPowerJSON`: hardpower file contains invalid JSON — expect `Core::ERROR_GENERAL`.
+- [x] 6.5 Add L1 test `GetPreviousRebootInfo_InvalidHardPowerJSON`: hardpower file contains invalid JSON — expect `Core::ERROR_NONE` with `lastHardPowerReset = "Unknown"`.
 - [x] 6.6 Add L1 test `GetPreviousRebootInfo_MissingFields`: both files valid JSON but some fields absent — expect `Core::ERROR_NONE`, missing fields return empty strings.
 - [x] 6.7 Add L1 test `GetPreviousRebootInfo_EmptyPrimaryFile`: primary file exists but is empty — expect `Core::ERROR_GENERAL`.
