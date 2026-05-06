@@ -5,12 +5,13 @@ After a device reboot (scheduled, unscheduled, user-initiated, or system-initiat
 ## What Changes
 
 - **New API** `getPreviousRebootInfo` added to the `DeviceDiagnostics` Thunder plugin.
-- Both `/opt/secure/reboot/previousreboot.info` and `/opt/secure/reboot/hardpower.info` are read and parsed as **JSON**. Both files must exist, be non-empty, and contain valid JSON for the API to succeed.
+- `/opt/secure/reboot/previousreboot.info` is read and parsed as **JSON**; it must exist, be non-empty, and contain valid JSON for the API to succeed — otherwise `Core::ERROR_GENERAL` is returned.
+- `/opt/secure/reboot/hardpower.info` is also read and parsed as JSON to extract `lastHardPowerReset`. If this file is missing, unreadable, contains invalid JSON, or lacks the `lastHardPowerReset` key, `lastHardPowerReset` is set to `"Unknown"` and the API still returns `Core::ERROR_NONE` (non-fatal).
+- If `lastHardPowerReset` value is empty or `"null"`, it is reported as `"Unknown"`.
 - The implementation is added to `DeviceDiagnosticsImplementation.cpp` as `GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success)`.
 - A free function overload `getFileContent(std::string, std::string&)` is added alongside the existing list-based overload to read file contents into a string using `std::stringstream`.
-- `Core::File::Exists()` is used to check existence of both files before reading.
+- `Core::File::Exists()` is used to check existence of `previousreboot.info` before reading.
 - The `RebootInfo` structure (with fields: `timestamp`, `source`, `reason`, `customReason`, `otherReason`, `lastHardPowerReset`) is defined in the Exchange interface (outside this repo); this change implements the method body.
-- All methods return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` on any error (missing file, empty file, or invalid JSON).
 
 ## Capabilities
 
@@ -19,6 +20,8 @@ After a device reboot (scheduled, unscheduled, user-initiated, or system-initiat
 
 ### Modified Capabilities
 - `device-diagnostics`: The existing `DeviceDiagnostics` plugin spec is extended to include the new `getPreviousRebootInfo` method and its response contract.
+
+- All methods return `Core::ERROR_NONE` on success and `Core::ERROR_GENERAL` on error. `GetPreviousRebootInfo` returns `Core::ERROR_GENERAL` only if `previousreboot.info` is missing, empty, or invalid JSON; `hardpower.info` failure degrades gracefully to `lastHardPowerReset = "Unknown"`.
 
 ## Impact
 

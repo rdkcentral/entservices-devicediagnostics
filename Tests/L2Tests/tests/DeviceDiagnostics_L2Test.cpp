@@ -800,8 +800,8 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_HardPowerFileMissing_COMR
     uint32_t status = m_devdiagplugin->GetPreviousRebootInfo(rebootInfo, success);
     
     // Based on current implementation, should return ERROR_GENERAL
-    EXPECT_EQ(status, Core::ERROR_GENERAL);
-    EXPECT_EQ(success, false);
+    EXPECT_EQ(status, Core::ERROR_NONE);
+    EXPECT_EQ(success, true);
     
     TEST_LOG("Hard power file missing - status: %u, success: %d", status, success);
     
@@ -879,7 +879,7 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_MissingFields_COMRPC)
     EXPECT_EQ(rebootInfo.reason, "null");
     EXPECT_EQ(rebootInfo.customReason, "null");
     EXPECT_EQ(rebootInfo.otherReason, "null");
-    EXPECT_EQ(rebootInfo.lastHardPowerReset, "null");
+    EXPECT_EQ(rebootInfo.lastHardPowerReset, "Unknown");
     
     TEST_LOG("Missing fields test - timestamp: %s, source: %s, empty fields verified",
              rebootInfo.timestamp.c_str(), rebootInfo.source.c_str());

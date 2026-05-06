@@ -269,7 +269,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_HardPowerFileMissing)
     // Test the API via JSON-RPC
     response.clear();
     Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
-    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_EQ(result, Core::ERROR_NONE);
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");
@@ -320,7 +320,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidPrimaryJSON)
 }
 
 /************Test case Details **************************
-** Test 3.5: Invalid JSON in hardpower.info (should return ERROR_GENERAL based on current implementation)
+** Test 3.5: Invalid JSON in hardpower.info (returns ERROR_NONE with lastHardPowerReset="Unknown")
 *******************************************************/
 TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
 {
@@ -345,7 +345,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_InvalidHardPowerJSON)
     // Test the API via JSON-RPC
     response.clear();
     Core::hresult result = handler_.Invoke(connection, _T("getPreviousRebootInfo"), _T("{}"), response);
-    EXPECT_EQ(result, Core::ERROR_GENERAL);
+    EXPECT_EQ(result, Core::ERROR_NONE);
     
     // Cleanup
     AssertRemove("/opt/secure/reboot/previousreboot.info");
@@ -386,7 +386,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
     EXPECT_TRUE(rebootInfo["reason"].String().empty() || rebootInfo["reason"].String() == "\"null\"");
     EXPECT_TRUE(rebootInfo["customReason"].String().empty() || rebootInfo["customReason"].String() == "\"null\"");
     EXPECT_TRUE(rebootInfo["otherReason"].String().empty() || rebootInfo["otherReason"].String() == "\"null\"");
-    EXPECT_TRUE(rebootInfo["lastHardPowerReset"].String().empty() || rebootInfo["lastHardPowerReset"].String() == "\"null\"");
+    EXPECT_TRUE(rebootInfo["lastHardPowerReset"].String().empty() || rebootInfo["lastHardPowerReset"].String() == "Unknown");
     ASSERT_TRUE(respJson.HasLabel("success"));
     EXPECT_TRUE(respJson["success"].Boolean());
     
