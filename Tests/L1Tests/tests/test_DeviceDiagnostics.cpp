@@ -386,7 +386,7 @@ TEST_F(DeviceDiagnosticsTest, GetPreviousRebootInfo_MissingFields)
     EXPECT_TRUE(rebootInfo["reason"].String().empty() || rebootInfo["reason"].String() == "\"null\"");
     EXPECT_TRUE(rebootInfo["customReason"].String().empty() || rebootInfo["customReason"].String() == "\"null\"");
     EXPECT_TRUE(rebootInfo["otherReason"].String().empty() || rebootInfo["otherReason"].String() == "\"null\"");
-    EXPECT_TRUE(rebootInfo["lastHardPowerReset"].String().empty() || rebootInfo["lastHardPowerReset"].String() == "\"Unknown\"");
+    EXPECT_TRUE(rebootInfo["lastHardPowerReset"].String().empty() || rebootInfo["lastHardPowerReset"].String() == "Unknown");
     ASSERT_TRUE(respJson.HasLabel("success"));
     EXPECT_TRUE(respJson["success"].Boolean());
     
