@@ -40,19 +40,23 @@ The Exchange interface (`IDeviceDiagnostics`) is defined outside this repo. This
 **Rationale:** JSON is a cleaner, structured format that avoids fragile regex patterns. The Thunder framework's `JsonObject` is already used throughout the plugin and provides robust parsing with proper error detection. If `FromString()` fails, the error is reported immediately.
 **Alternative considered:** Regex parsing of `Key:Value` lines (as used in `SystemServices::getPreviousRebootInfo2`) — rejected because it is fragile to whitespace/formatting variations and does not provide structured validation. JSON parsing provides implicit validation of file integrity.
 
-### Decision 4: Both files are required — `hardpower.info` missing is a hard failure
-**Chosen:** If either file is absent, empty, or invalid, `GetPreviousRebootInfo` returns `Core::ERROR_GENERAL` and `success = false`.
-**Rationale:** Both files together form a complete reboot record. If `hardpower.info` is absent, the response would be incomplete. Returning partial data silently could mislead diagnostics consumers. Strict failure semantics make the contract unambiguous.
-**Alternative considered:** Treat `hardpower.info` as optional, returning `success: true` with `lastHardPowerReset` empty — rejected in favour of strict, predictable error handling.
+### Decision 4: `hardpower.info` is non-fatal — missing or invalid yields `"Unknown"`
+**Chosen:** If `hardpower.info` is absent, unreadable, contains invalid JSON, or lacks the `lastHardPowerReset` key, `rebootInfo.lastHardPowerReset` is set to `"Unknown"` and the API returns `Core::ERROR_NONE`.
+**Rationale:** Some platforms may not write `hardpower.info` on every reboot (e.g., soft reboots). Treating a missing hard-power file as a fatal error would cause the API to always fail on such platforms, providing no data at all to diagnostics consumers. Returning a partial response with `"Unknown"` is more useful than a complete failure. The primary reboot info (`previousreboot.info`) is the required source of truth; `hardpower.info` supplements it.
+**Alternative considered:** Treat both files as required; missing `hardpower.info` returns `ERROR_GENERAL` — rejected because it breaks the API on platforms where `hardpower.info` is not written for every reboot type.
 
 ### Decision 5: Error handling strategy
-**Chosen:** Return `Core::ERROR_GENERAL` (and `success = false`) on any of:
-- Primary file does not exist
-- Hardpower file does not exist
-- Either file is empty
-- Either file fails JSON parsing
-
-Return `Core::ERROR_NONE` (and `success = true`) only when both files are read and parsed successfully.
+**Chosen:**
+- Return `Core::ERROR_GENERAL` (and `success = false`) when:
+  - `previousreboot.info` does not exist
+  - `previousreboot.info` is empty
+  - `previousreboot.info` fails JSON parsing
+- Set `lastHardPowerReset = "Unknown"` and continue (return `Core::ERROR_NONE`) when:
+  - `hardpower.info` is missing or unreadable
+  - `hardpower.info` fails JSON parsing
+  - `hardpower.info` does not contain the `lastHardPowerReset` key
+  - `lastHardPowerReset` value is empty or `"null"`
+- Return `Core::ERROR_NONE` (and `success = true`) when `previousreboot.info` is successfully read and parsed, regardless of `hardpower.info` state.
 
 ## Implementation Summary
 
@@ -69,25 +73,22 @@ Return `Core::ERROR_NONE` (and `success = true`) only when both files are read a
 1. Check Core::File(PREVIOUS_REBOOT_INFO_FILE).Exists()
    - If false: success = false; return Core::ERROR_GENERAL
 
-2. Check Core::File(HARD_POWER_INFO_FILE).Exists()
-   - If false: success = false; return Core::ERROR_GENERAL
-
-3. Call getFileContent(PREVIOUS_REBOOT_INFO_FILE, rebootInfoContent)
+2. Call getFileContent(PREVIOUS_REBOOT_INFO_FILE, rebootInfoContent)
    - If fails or content empty: success = false; return Core::ERROR_GENERAL
 
-4. JsonObject::FromString(rebootInfoContent)
+3. JsonObject::FromString(rebootInfoContent)
    - If fails: success = false; return Core::ERROR_GENERAL
    - Extract: timestamp, source, reason, customReason, otherReason
 
-5. Call getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo)
-   - If fails or content empty: success = false; return Core::ERROR_GENERAL
+4. Call getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo)
+   Parse with JsonObject::FromString() and check HasLabel("lastHardPowerReset")
+   - If any of: getFileContent fails, JSON parse fails, or key missing:
+       rebootInfo.lastHardPowerReset = "Unknown" (non-fatal; continue)
+   - Else:
+       value = hardPowerInfoJson["lastHardPowerReset"].String()
+       rebootInfo.lastHardPowerReset = (value.empty() || value == "null") ? "Unknown" : value
 
-6. JsonObject::FromString(hardPowerInfo)
-   - If fails: success = false; return Core::ERROR_GENERAL
-   - Extract: lastHardPowerReset
-
-7. Populate rebootInfo struct fields (std::move for efficiency)
-   success = true; return Core::ERROR_NONE
+5. success = true; return Core::ERROR_NONE
 ```
 
 ### `getFileContent(string, string&)` Logic
@@ -103,8 +104,8 @@ Return `Core::ERROR_NONE` (and `success = true`) only when both files are read a
 - **Risk: JSON format dependency** → Both files must be in JSON. If the OS writes these files in a legacy key-value format, parsing will fail.
   *Mitigation*: Document the expected file format clearly. The existing `SystemServices` implementation uses the key-value format; platform owners must ensure `DeviceDiagnostics` targets devices whose reboot files are in JSON format.
 
-- **Risk: Strict error on missing hardpower.info** → Some platforms may not write `hardpower.info` on every reboot (e.g., soft reboot without power cycle).
-  *Trade-off accepted*: Strict error handling preferred for diagnostic correctness. If relaxation is needed, `hardpower.info` can be made optional in a follow-up change.
+- **Risk: `hardpower.info` unavailable on some reboots** → Some platforms may not write `hardpower.info` on soft reboots without a power cycle.
+  *Trade-off accepted*: `hardpower.info` is treated as non-fatal. Missing or invalid file results in `lastHardPowerReset = "Unknown"` while `previousreboot.info` data is still returned. This is a deliberate design choice to maximise API availability across platforms.
 
 - **Risk: Interface not yet updated** → If `RebootInfo` / `GetPreviousRebootInfo` are not yet in the Exchange interface, the build will fail.
   *Mitigation*: Coordinate interface changes before merging.
@@ -117,5 +118,4 @@ Return `Core::ERROR_NONE` (and `success = true`) only when both files are read a
 
 ## Open Questions
 
-- Should `hardpower.info` be treated as optional (non-fatal if missing)? Current implementation treats it as required.
 - Are both reboot files confirmed to be in JSON format on all target platforms?

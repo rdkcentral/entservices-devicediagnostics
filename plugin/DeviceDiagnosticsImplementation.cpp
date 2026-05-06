@@ -418,9 +418,7 @@ namespace WPEFramework
             LOGINFO("");
             
             bool retAPIStatus = false;
-            string timestamp, source, reason, customReason, otherReason, lastHardPowerReset;
-            string rebootInfoContent;
-            string hardPowerInfo;
+            string rebootInfoContent, hardPowerInfo;
             Core::hresult result = Core::ERROR_GENERAL;
             
             success = false;
@@ -428,12 +426,7 @@ namespace WPEFramework
 		       LOGERR("Failed to get previous reboot info, %s file does not exist", PREVIOUS_REBOOT_INFO_FILE);
 		       return result;
 	        }
-
-	        if (!Core::File(string(HARD_POWER_INFO_FILE)).Exists()) {
-               LOGERR("Failed to get previous reboot info, %s file does not exist", HARD_POWER_INFO_FILE);
-               return result;
-            }
-
+			
             retAPIStatus = getFileContent(PREVIOUS_REBOOT_INFO_FILE, rebootInfoContent);
             if (!retAPIStatus || rebootInfoContent.empty()) {
                 LOGERR("Failed to read reboot info file or file is empty");
@@ -442,37 +435,26 @@ namespace WPEFramework
 			
             JsonObject rebootInfoJson;
             if (rebootInfoJson.FromString(rebootInfoContent)) {
-                timestamp = rebootInfoJson["timestamp"].String();
-                source = rebootInfoJson["source"].String();
-                reason = rebootInfoJson["reason"].String();
-                customReason = rebootInfoJson["customReason"].String();     
-                otherReason = rebootInfoJson["otherReason"].String();
+                rebootInfo.timestamp = rebootInfoJson["timestamp"].String();
+                rebootInfo.source = rebootInfoJson["source"].String();
+                rebootInfo.reason = rebootInfoJson["reason"].String();
+                rebootInfo.customReason= rebootInfoJson["customReason"].String();     
+                rebootInfo.otherReason = rebootInfoJson["otherReason"].String();
             } else {
                 LOGERR("Failed to parse reboot info JSON");
                 return result;
             }
 			
+			JsonObject hardPowerInfoJson;
             bool hardPowerStatus = getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo);
-            if (!hardPowerStatus || hardPowerInfo.empty()) {
-                LOGERR("Failed to read hard power info file or file is empty");
-                return result;
-            }
-            JsonObject hardPowerInfoJson;
-            if (hardPowerInfoJson.FromString(hardPowerInfo)) {
-                lastHardPowerReset = hardPowerInfoJson["lastHardPowerReset"].String();
-                
+            if (!hardPowerStatus ||!hardPowerInfoJson.FromString(hardPowerInfo) || !hardPowerInfoJson.HasLabel("lastHardPowerReset")) {
+			    rebootInfo.lastHardPowerReset = "Unknown";
+		        LOGERR("Failed to read or parse hard power info file: %s", HARD_POWER_INFO_FILE);
             } else {
-                LOGERR("Failed to parse hard power info JSON");
-                return result;
-            }
+				std::string value = hardPowerInfoJson["lastHardPowerReset"].String();
+                rebootInfo.lastHardPowerReset = (value.empty() || value == "null") ? "Unknown" : value;
+			}
 			
-            rebootInfo.timestamp = std::move(timestamp);
-            rebootInfo.source = std::move(source);
-            rebootInfo.reason = std::move(reason);
-            rebootInfo.customReason = std::move(customReason);
-            rebootInfo.otherReason = std::move(otherReason);
-            rebootInfo.lastHardPowerReset = std::move(lastHardPowerReset);
-            
             success = true;
                  
             return Core::ERROR_NONE;
