@@ -879,7 +879,7 @@ TEST_F(DeviceDiagnostics_L2test, GetPreviousRebootInfo_MissingFields_COMRPC)
     EXPECT_EQ(rebootInfo.reason, "null");
     EXPECT_EQ(rebootInfo.customReason, "null");
     EXPECT_EQ(rebootInfo.otherReason, "null");
-    EXPECT_EQ(rebootInfo.lastHardPowerReset, "null");
+    EXPECT_EQ(rebootInfo.lastHardPowerReset, "Unknown");
     
     TEST_LOG("Missing fields test - timestamp: %s, source: %s, empty fields verified",
              rebootInfo.timestamp.c_str(), rebootInfo.source.c_str());
