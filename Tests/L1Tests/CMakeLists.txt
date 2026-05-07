@@ -33,7 +33,7 @@ set (TEST_LIB
     ${NAMESPACE}Plugins::${NAMESPACE}Plugins
 )
 
-set (TEST_INC ../../helpers)
+set (TEST_INC)
 
 #########################################################################################
 # add_plugin_test_ex: Macro to add plugin tests, it will append to TEST_SRC, TEST_INC,
@@ -103,7 +103,7 @@ macro(add_plugin_test plugin_name test_files)
 endmacro()
 
 # PLUGIN_DEVICEDIAGNOSTICS
-set (DEVICEDIAGNOSTICS_INC ${CMAKE_SOURCE_DIR}/../entservices-devicediagnostics/plugin ${CMAKE_SOURCE_DIR}/../entservices-devicediagnostics/helpers)
+set (DEVICEDIAGNOSTICS_INC ${CMAKE_SOURCE_DIR}/../entservices-devicediagnostics/plugin ${CMAKE_SOURCE_DIR}/../entservices-helpers/helpers)
 set (DEVICEDIAGNOSTICS_LIBS ${NAMESPACE}DeviceDiagnostics ${NAMESPACE}DeviceDiagnosticsImplementation)
 add_plugin_test_ex(PLUGIN_DEVICEDIAGNOSTICS tests/test_DeviceDiagnostics.cpp "${DEVICEDIAGNOSTICS_INC}" "${DEVICEDIAGNOSTICS_LIBS}")
 

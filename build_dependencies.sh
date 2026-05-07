@@ -53,6 +53,9 @@ git clone --branch develop https://github.com/rdkcentral/entservices-apis.git
 
 git clone --branch 1.0.6 https://github.com/rdkcentral/entservices-testframework.git
 
+cd ..
+git clone --branch feature/RDKEMW-16743 https://github.com/rdkcentral/entservices-helpers.git
+cd "$GITHUB_WORKSPACE"
 ############################
 # Build Thunder-Tools
 echo "======================================================================================"
@@ -112,6 +115,20 @@ cmake -G Ninja -S entservices-apis  -B build/entservices-apis \
     -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
 
 cmake --build build/entservices-apis --target install
+
+############################
+# Build entservices-helpers
+echo "======================================================================================"
+echo "building entservices-helpers"
+
+cmake -G Ninja -S ../entservices-helpers -B build/entservices-helpers \
+    -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
+    -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake" \
+    -DUSE_THUNDER_R4=ON \
+    -DHIDE_NON_EXTERNAL_SYMBOLS=OFF \
+    -DPLUGIN_HELPERS=ON \
+
+cmake --build build/entservices-helpers --target install
 
 ############################
 # generating minimal mock headers
