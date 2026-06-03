@@ -138,6 +138,7 @@ cd headers
 touch secure_wrapper.h
 touch wpa_ctrl.h
 touch rdk_logger_milestone.h
+touch tr181api.h
 cd $GITHUB_WORKSPACE
 
 ls -la ${GITHUB_WORKSPACE}
