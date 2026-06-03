@@ -127,7 +127,7 @@ cmake -G Ninja -S ../entservices-helpers -B build/entservices-helpers \
     -DUSE_THUNDER_R4=ON \
     -DHIDE_NON_EXTERNAL_SYMBOLS=OFF \
     -DPLUGIN_HELPERS=ON \
-    "-DCMAKE_CXX_FLAGS=-I$GITHUB_WORKSPACE/entservices-testframework/Tests/mocks -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers" \
+    "-DCMAKE_CXX_FLAGS=-I$GITHUB_WORKSPACE/entservices-testframework/Tests/mocks -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/Iarm.h" \
 
 cmake --build build/entservices-helpers --target install
 
