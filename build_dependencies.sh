@@ -117,16 +117,6 @@ cmake -G Ninja -S entservices-apis  -B build/entservices-apis \
 cmake --build build/entservices-apis --target install
 
 ############################
-# generating minimal mock headers
-cd $GITHUB_WORKSPACE/entservices-testframework/Tests
-mkdir -p headers
-cd headers
-touch secure_wrapper.h
-touch wpa_ctrl.h
-touch rdk_logger_milestone.h
-touch tr181api.h
-cd $GITHUB_WORKSPACE
-############################
 # Build entservices-helpers
 echo "======================================================================================"
 echo "building entservices-helpers"
@@ -137,6 +127,18 @@ cmake -G Ninja -S ../entservices-helpers -B build/entservices-helpers \
     -DUSE_THUNDER_R4=ON \
     -DHIDE_NON_EXTERNAL_SYMBOLS=OFF \
     -DPLUGIN_HELPERS=ON \
+    "-DCMAKE_CXX_FLAGS=-I$GITHUB_WORKSPACE/entservices-testframework/Tests/mocks -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers" \
 
 cmake --build build/entservices-helpers --target install
+
+############################
+# generating minimal mock headers
+cd $GITHUB_WORKSPACE/entservices-testframework/Tests
+mkdir -p headers
+cd headers
+touch secure_wrapper.h
+touch wpa_ctrl.h
+touch rdk_logger_milestone.h
+cd $GITHUB_WORKSPACE
+
 ls -la ${GITHUB_WORKSPACE}
