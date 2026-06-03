@@ -127,7 +127,7 @@ cmake -G Ninja -S ../entservices-helpers -B build/entservices-helpers \
     -DUSE_THUNDER_R4=ON \
     -DHIDE_NON_EXTERNAL_SYMBOLS=OFF \
     -DPLUGIN_HELPERS=ON \
-    "-DCMAKE_CXX_FLAGS=-I$GITHUB_WORKSPACE/entservices-testframework/Tests/mocks -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/Iarm.h" \
+    "-DCMAKE_CXX_FLAGS=-I$GITHUB_WORKSPACE/entservices-testframework/Tests/mocks -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/Iarm.h " \
 
 cmake --build build/entservices-helpers --target install
 
@@ -139,6 +139,10 @@ cd headers
 touch secure_wrapper.h
 touch wpa_ctrl.h
 touch rdk_logger_milestone.h
+mkdir -p rdk/iarmbus
+touch rdk/iarmbus/libIARM.h
+touch rdk/iarmbus/libIBus.h
+touch iarm.h
 cd $GITHUB_WORKSPACE
 
 ls -la ${GITHUB_WORKSPACE}
