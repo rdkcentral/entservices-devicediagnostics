@@ -21,10 +21,13 @@
 #include <curl/curl.h>
 #include <time.h>
 #include <fstream>
+#include <sstream>
 
 #include "UtilsJsonRpc.h"
 
 #define MILESTONES_LOG_FILE                     "/opt/logs/rdk_milestones.log"
+#define PREVIOUS_REBOOT_INFO_FILE              "/opt/secure/reboot/previousreboot.info"
+#define HARD_POWER_INFO_FILE                   "/opt/secure/reboot/hardpower.info"
 
 
 /***
@@ -34,6 +37,14 @@
  * @return : <bool>; TRUE if operation success; else FALSE.
  */
 bool getFileContent(std::string fileName, std::list<std::string> & listOfStrs);
+
+/***
+ * @brief  : Used to read entire file contents into a string
+ * @param1[in] : Complete file name with path
+ * @param2[out] : Destination string buffer to be filled with file contents
+ * @return : <bool>; TRUE if operation success; else FALSE.
+ */
+bool getFileContent(std::string fileName, std::string& fileContent);
 
 namespace WPEFramework
 {
@@ -401,8 +412,74 @@ namespace WPEFramework
             }
             return result;
         }
+
+        Core::hresult DeviceDiagnosticsImplementation::GetPreviousRebootInfo(RebootInfo& rebootInfo, bool& success)
+        {
+            LOGINFO("");
+            
+            bool retAPIStatus = false;
+            string rebootInfoContent, hardPowerInfo;
+            Core::hresult result = Core::ERROR_GENERAL;
+            
+            success = false;
+            if (!Core::File(string(PREVIOUS_REBOOT_INFO_FILE)).Exists()) {
+		       LOGERR("Failed to get previous reboot info, %s file does not exist", PREVIOUS_REBOOT_INFO_FILE);
+		       return result;
+	        }
+			
+            retAPIStatus = getFileContent(PREVIOUS_REBOOT_INFO_FILE, rebootInfoContent);
+            if (!retAPIStatus || rebootInfoContent.empty()) {
+                LOGERR("Failed to read reboot info file or file is empty");
+		        return result;
+            }
+			
+            JsonObject rebootInfoJson;
+            if (rebootInfoJson.FromString(rebootInfoContent)) {
+                rebootInfo.timestamp = rebootInfoJson["timestamp"].String();
+                rebootInfo.source = rebootInfoJson["source"].String();
+                rebootInfo.reason = rebootInfoJson["reason"].String();
+                rebootInfo.customReason= rebootInfoJson["customReason"].String();     
+                rebootInfo.otherReason = rebootInfoJson["otherReason"].String();
+            } else {
+                LOGERR("Failed to parse reboot info JSON");
+                return result;
+            }
+			
+			JsonObject hardPowerInfoJson;
+            bool hardPowerStatus = getFileContent(HARD_POWER_INFO_FILE, hardPowerInfo);
+            if (!hardPowerStatus ||!hardPowerInfoJson.FromString(hardPowerInfo) || !hardPowerInfoJson.HasLabel("lastHardPowerReset")) {
+			    rebootInfo.lastHardPowerReset = "Unknown";
+		        LOGERR("Failed to read or parse hard power info file: %s", HARD_POWER_INFO_FILE);
+            } else {
+				std::string value = hardPowerInfoJson["lastHardPowerReset"].String();
+                rebootInfo.lastHardPowerReset = (value.empty() || value == "null") ? "Unknown" : value;
+			}
+			
+            success = true;
+                 
+            return Core::ERROR_NONE;
+        }
     } // namespace Plugin
 } // namespace WPEFramework
+
+/***
+ * @brief       : Used to read file contents into a string
+ * @param1[in]  : Complete file name with path
+ * @param2[out] : Destination string object filled with file contents
+ * @return      : <bool>; TRUE if operation success; else FALSE.
+ */
+bool getFileContent(std::string fileName, std::string& fileContent)
+{
+    std::ifstream inFile(fileName.c_str(), std::ios::in);
+    if (!inFile.is_open()) return false;
+
+    std::stringstream buffer;
+    buffer << inFile.rdbuf();
+    fileContent = buffer.str();
+    inFile.close();
+
+    return true;
+}
 
 /***
  * @brief   : Used to read file contents into a list
