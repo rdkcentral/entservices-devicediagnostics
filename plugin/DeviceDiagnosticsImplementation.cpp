@@ -75,6 +75,7 @@ namespace WPEFramework
 #endif
         {
             LOGINFO("Create DeviceDiagnosticsImplementation Instance");
+	    LOGINFO("Create DeviceDiagnosticsImplementation Instance Successfully");
 
             DeviceDiagnosticsImplementation::_instance = this;
 
