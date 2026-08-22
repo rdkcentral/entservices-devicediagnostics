@@ -17,6 +17,7 @@
 * limitations under the License.
 **/
 
+
 #include "DeviceDiagnosticsImplementation.h"
 #include <curl/curl.h>
 #include <time.h>
@@ -28,6 +29,7 @@
 #define MILESTONES_LOG_FILE                     "/opt/logs/rdk_milestones.log"
 #define PREVIOUS_REBOOT_INFO_FILE              "/opt/secure/reboot/previousreboot.info"
 #define HARD_POWER_INFO_FILE                   "/opt/secure/reboot/hardpower.info"
+
 
 
 /***
