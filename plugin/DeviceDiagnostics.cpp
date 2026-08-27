@@ -23,7 +23,7 @@
 #define API_VERSION_NUMBER_MINOR 1
 #define API_VERSION_NUMBER_PATCH 2
 
-namespace WPEFramework
+namespace Thunder
 {
 
     namespace {
@@ -44,7 +44,7 @@ namespace WPEFramework
     {
 
     /*
-     *Register DeviceDiagnostics module as wpeframework plugin
+     *Register DeviceDiagnostics module as thunder plugin
      **/
     SERVICE_REGISTRATION(DeviceDiagnostics, API_VERSION_NUMBER_MAJOR, API_VERSION_NUMBER_MINOR, API_VERSION_NUMBER_PATCH);
 
@@ -79,7 +79,7 @@ namespace WPEFramework
         {
             // Register for notifications
             _deviceDiagnostics->Register(&_deviceDiagnosticsNotification);
-            // Invoking Plugin API register to wpeframework
+            // Invoking Plugin API register to thunder
             Exchange::JDeviceDiagnostics::Register(*this, _deviceDiagnostics);
         }
         else
@@ -160,4 +160,4 @@ namespace WPEFramework
         }
     }
 } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder

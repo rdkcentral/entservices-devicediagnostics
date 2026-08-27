@@ -39,9 +39,9 @@
 #define DEVDIAGL2TEST_CALLSIGN _T("L2tests.1")
 
 using ::testing::NiceMock;
-using namespace WPEFramework;
+using namespace Thunder;
 using testing::StrictMock;
-using ::WPEFramework::Exchange::IDeviceDiagnostics;
+using ::Thunder::Exchange::IDeviceDiagnostics;
 
 typedef enum : uint32_t {
     DeviceDiagnostics_onAVDecoderStatusChanged = 0x00000001,
@@ -574,7 +574,7 @@ TEST_F(DeviceDiagnostics_L2test, GetConfiguration_COMRPC)
     std::list<std::string> keys = {
         "Device.X_CISCO_COM_LED.RedPwm"
     };
-    WPEFramework::RPC::IStringIterator* names;
+    Thunder::RPC::IStringIterator* names;
     names = (Core::Service<RPC::StringIterator>::Create<RPC::IStringIterator>(keys));
     Exchange::IDeviceDiagnostics::IDeviceDiagnosticsParamListIterator* paramList = nullptr;
     // Error case server not started
@@ -624,7 +624,7 @@ TEST_F(DeviceDiagnostics_L2test, GetConfiguration_COMRPC)
         "Device.X_CISCO_COM_LED.RedPwm",
         "Device.DeviceInfo.Manufacturer"
     };
-    WPEFramework::RPC::IStringIterator* val;
+    Thunder::RPC::IStringIterator* val;
     success = false;
     val = (Core::Service<RPC::StringIterator>::Create<RPC::IStringIterator>(key));
     status = m_devdiagplugin->GetConfiguration(val, paramList,success);
@@ -639,7 +639,7 @@ TEST_F(DeviceDiagnostics_L2test, GetConfiguration_COMRPC)
     // Compare the expected output
     std::list<std::string> paramNames;
     if (paramList) {
-        WPEFramework::Exchange::IDeviceDiagnostics::ParamList entry;
+        Thunder::Exchange::IDeviceDiagnostics::ParamList entry;
         paramList->Reset(0);
 
         while (paramList->Next(entry)) {
@@ -670,7 +670,7 @@ TEST_F(DeviceDiagnostics_L2test, GetMilestones_COMRPC)
 {
     uint32_t status = Core::ERROR_NONE;
     bool success = false;
-    WPEFramework::RPC::IStringIterator* result = nullptr;
+    Thunder::RPC::IStringIterator* result = nullptr;
 
     status = m_devdiagplugin->GetMilestones(result,success);
     EXPECT_EQ(status, Core::ERROR_NONE);

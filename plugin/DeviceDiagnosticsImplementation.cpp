@@ -46,7 +46,7 @@ bool getFileContent(std::string fileName, std::list<std::string> & listOfStrs);
  */
 bool getFileContent(std::string fileName, std::string& fileContent);
 
-namespace WPEFramework
+namespace Thunder
 {
     namespace Plugin
     {
@@ -460,7 +460,7 @@ namespace WPEFramework
             return Core::ERROR_NONE;
         }
     } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder
 
 /***
  * @brief       : Used to read file contents into a string

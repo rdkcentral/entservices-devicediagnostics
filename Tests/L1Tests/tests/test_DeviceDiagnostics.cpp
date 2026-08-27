@@ -35,7 +35,7 @@
 #include "COMLinkMock.h"
 #include "WrapsMock.h"
 
-using namespace WPEFramework;
+using namespace Thunder;
 using ::testing::NiceMock;
 
 // Helper to assert remove success or file not found
@@ -90,26 +90,18 @@ protected:
         // Mock service->COMLink() to return comLinkMock
         ON_CALL(service, COMLink())
             .WillByDefault(::testing::Invoke(
-                [this]() -> WPEFramework::PluginHost::IShell::ICOMLink* {
+                [this]() -> Thunder::PluginHost::IShell::ICOMLink* {
                     return &comLinkMock;
                 }));
 
         // Mock comLinkMock->Instantiate() to return DeviceDiagnosticsImplementation
-#ifdef USE_THUNDER_R4
         ON_CALL(comLinkMock, Instantiate(::testing::_, ::testing::_, ::testing::_))
             .WillByDefault(::testing::Invoke(
                 [&](const RPC::Object& object, const uint32_t waitTime, uint32_t& connectionId) -> void* {
                     deviceDiagnosticsImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
                     return &deviceDiagnosticsImpl;
                 }));
-#else
-        ON_CALL(comLinkMock, Instantiate(::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_))
-            .WillByDefault(::testing::Invoke(
-                [&](const RPC::Object& object, const uint32_t waitTime, uint32_t& connectionId, const string& className, const string& callsign) -> void* {
-                    deviceDiagnosticsImpl = Core::ProxyType<Plugin::DeviceDiagnosticsImplementation>::Create();
-                    return deviceDiagnosticsImpl;
-                }));
-#endif
+
 
         Core::IWorkerPool::Assign(&(*workerPool));
         workerPool->Run();

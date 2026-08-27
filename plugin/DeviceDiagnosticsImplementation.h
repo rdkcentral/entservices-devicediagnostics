@@ -37,7 +37,7 @@
 #include <com/com.h>
 #include <core/core.h>
 
-namespace WPEFramework
+namespace Thunder
 {
     namespace Plugin
     {
@@ -85,11 +85,7 @@ namespace WPEFramework
 
             public:
                 static Core::ProxyType<Core::IDispatch> Create(DeviceDiagnosticsImplementation* deviceDiagnosticsImplementation, Event event, JsonValue  params ) {
-#ifndef USE_THUNDER_R4
-                    return (Core::proxy_cast<Core::IDispatch>(Core::ProxyType<Job>::Create(deviceDiagnosticsImplementation, event, params)));
-#else
                     return (Core::ProxyType<Core::IDispatch>(Core::ProxyType<Job>::Create(deviceDiagnosticsImplementation, event, params)));
-#endif
                 }
 
                 virtual void Dispatch() {
@@ -139,4 +135,4 @@ namespace WPEFramework
             friend class Job;
         };
     } // namespace Plugin
-} // namespace WPEFramework
+} // namespace Thunder
