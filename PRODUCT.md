@@ -2,7 +2,7 @@
 
 ## Product Overview
 
-The DeviceDiagnostics plugin is a Thunder (WPEFramework) service that provides comprehensive device diagnostic capabilities for RDK-based set-top boxes, streaming devices, and smart TVs. It enables operators, device manufacturers, and application developers to monitor device health, track system milestones, and retrieve critical device configuration parameters in real-time.
+The DeviceDiagnostics plugin is a Thunder service that provides comprehensive device diagnostic capabilities for RDK-based set-top boxes, streaming devices, and smart TVs. It enables operators, device manufacturers, and application developers to monitor device health, track system milestones, and retrieve critical device configuration parameters in real-time.
 
 ## Key Features
 
