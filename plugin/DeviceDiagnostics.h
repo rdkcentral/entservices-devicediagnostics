@@ -101,7 +101,7 @@ namespace Thunder
                     PluginHost::IShell* _service{};
                     uint32_t _connectionId{};
                     Exchange::IDeviceDiagnostics* _deviceDiagnostics{};
-                    Core::Sink<Notification> _deviceDiagnosticsNotification;
+                    Core::SinkType<Notification> _deviceDiagnosticsNotification;
        };
     } // namespace Plugin
 } // namespace Thunder

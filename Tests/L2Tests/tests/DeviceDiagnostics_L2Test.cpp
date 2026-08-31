@@ -133,7 +133,7 @@ protected:
     /** @brief Pointer to the IDeviceDiagnostics interface */
     Exchange::IDeviceDiagnostics* m_devdiagplugin;
 
-    Core::Sink<DiagnosticsNotificationHandler> notify;
+    Core::SinkType<DiagnosticsNotificationHandler> notify;
 };
 
 DeviceDiagnostics_L2test::DeviceDiagnostics_L2test()
