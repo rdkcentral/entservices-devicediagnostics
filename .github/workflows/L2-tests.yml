@@ -100,6 +100,13 @@ jobs:
           path: entservices-devicediagnostics
           ref: develop
 
+      - name: Checkout rdk-halif-device_settings
+        uses: actions/checkout@v3
+        with:
+          repository: rdkcentral/rdk-halif-device_settings
+          path: rdk-halif-device_settings
+          ref: 6.0.1
+
       - name: Checkout entservices-testframework
         uses: actions/checkout@v3
         with:
